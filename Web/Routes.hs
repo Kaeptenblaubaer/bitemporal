@@ -15,3 +15,12 @@ instance AutoRoute WorkflowsController
 
 instance AutoRoute HistoriesController
 
+
+instance AutoRoute UsersController
+
+
+instance AutoRoute RolesController
+
+
+instance AutoRoute UserrolesController
+

@@ -5,6 +5,9 @@ import Web.Controller.Prelude
 import Web.View.Layout (defaultLayout)
 
 -- Controller Imports
+import Web.Controller.Userroles
+import Web.Controller.Roles
+import Web.Controller.Users
 import Web.Controller.Histories
 import Web.Controller.Workflows
 import Web.Controller.Partners
@@ -15,6 +18,9 @@ instance FrontController WebApplication where
     controllers = 
         [ startPage WelcomeAction
         -- Generator Marker
+        , parseRoute @UserrolesController
+        , parseRoute @RolesController
+        , parseRoute @UsersController
         , parseRoute @HistoriesController
         , parseRoute @WorkflowsController
         , parseRoute @PartnersController

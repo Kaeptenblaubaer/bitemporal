@@ -48,3 +48,33 @@ data HistoriesController
     | UpdateHistoryAction { historyId :: !(Id History) }
     | DeleteHistoryAction { historyId :: !(Id History) }
     deriving (Eq, Show, Data)
+
+data UsersController
+    = UsersAction
+    | NewUserAction
+    | ShowUserAction { userId :: !(Id User) }
+    | CreateUserAction
+    | EditUserAction { userId :: !(Id User) }
+    | UpdateUserAction { userId :: !(Id User) }
+    | DeleteUserAction { userId :: !(Id User) }
+    deriving (Eq, Show, Data)
+
+data RolesController
+    = RolesAction
+    | NewRoleAction
+    | ShowRoleAction { roleId :: !(Id Role) }
+    | CreateRoleAction
+    | EditRoleAction { roleId :: !(Id Role) }
+    | UpdateRoleAction { roleId :: !(Id Role) }
+    | DeleteRoleAction { roleId :: !(Id Role) }
+    deriving (Eq, Show, Data)
+
+data UserrolesController
+    = UserrolesAction
+    | NewUserroleAction
+    | ShowUserroleAction { userroleId :: !(Id Userrole) }
+    | CreateUserroleAction
+    | EditUserroleAction { userroleId :: !(Id Userrole) }
+    | UpdateUserroleAction { userroleId :: !(Id Userrole) }
+    | DeleteUserroleAction { userroleId :: !(Id Userrole) }
+    deriving (Eq, Show, Data)
