@@ -1,0 +1,13 @@
+{
+	"folders": [
+		{
+			"path": ".."
+		},
+		{
+			"path": "."
+		}
+	],
+	"settings": {
+		"nixEnvSelector.nixShellConfig": "${workspaceRoot}/default.nix"
+	}
+}
