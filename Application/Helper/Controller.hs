@@ -50,7 +50,7 @@ class (KnownSymbol (GetTableName rec), rec ~ GetModelByTableName (GetTableName r
                         let versionId :: Integer = bubu $ get #id version
                                                     where bubu (Id intid) = intid
                         state ::rec <- newRecord |> set #refhistory (get #id history) |> set #validfromversion (get #id version) |> createRecord
-                        uptodate ::Workflow <- workflow |> set #progress (show . encode $ WorkflowProgress (Just(StateKeys (Just historyUUID) (Just versionId) (Just (getKey state)) )) Nothing) |> updateRecord
+                        uptodate ::Workflow <- workflow |> set #progress ( toJSON $ WorkflowProgress (Just(StateKeys (Just historyUUID) (Just versionId) (Just (getKey state)) )) Nothing) |> updateRecord
                         putStrLn ("hier ist Workflow mit JSON " ++ (show (get #progress uptodate)))
                         pure state
  
@@ -59,15 +59,18 @@ instance CanVersion Contract
 
 queryVersionMutableValidfrom :: (?modelContext::ModelContext) => Workflow -> IO (Version,[Version])
 queryVersionMutableValidfrom workflow = do
-        let wfprogress :: WorkflowProgress = fromJust $ decode.encode $ get #progress workflow
+        putStrLn ( "Workflow=" ++ (show workflow) )
+        let wfpM :: Maybe WorkflowProgress =  decode $ encode $ get #progress workflow
+        let wfprogress :: WorkflowProgress = fromJust wfpM
         let validfrom = tshow $ get #validfrom workflow
-        let historyId =  fromJust $ getContractKeys wfprogress
-                where getContractKeys (WorkflowProgress (Just (StateKeys h _ _ )) _) = h
+        let keys =  getContractKeys wfprogress
+                where getContractKeys (WorkflowProgress (Just (StateKeys h v c )) _) = (fromJust h,fromJust v)
         let q :: Query = "SELECT * FROM versions v WHERE v.id in (SELECT max(id) FROM versions where refhistory = ? and validfrom <= ?)"
-        let p :: (Id History,Text) = (Id historyId,validfrom)
+        let p :: (Id History, Text) = (Id $ fst keys, validfrom)
         vs :: [Version]  <- sqlQuery  q p
         let q2 :: Query = "SELECT v FROM versions v WHERE refhistory = ? and v.id > ? and validfrom > ?"
-        shadowed :: [Version]  <- sqlQuery  q2 p
+        let p2 :: (Id History, Id Version,Text) = (Id $ fst keys, Id $snd keys, validfrom)
+        shadowed :: [Version]  <- sqlQuery  q2 p2
         pure $ (fromJust $ head vs, shadowed)
 
  

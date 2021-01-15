@@ -7,6 +7,7 @@ import Web.View.Workflows.Edit
 import Web.View.Workflows.Show
 import Application.Helper.Controller (createHistory, getKey, queryMutableState, today )
 import Application.Helper.WorkflowProgress
+import Data.Maybe ( fromJust )
 
 instance Controller WorkflowsController where
     action WorkflowsAction = do
@@ -21,12 +22,14 @@ instance Controller WorkflowsController where
         putStrLn ("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@historyId=" ++ (show historyIdMB))
         case historyIdMB of 
             Just historyId ->  do
-                let workflow = newRecord |> set #refuser (Id "3b95e3f1-b950-42c2-bb7f-60f3e67dbb79") |> set #validfrom today |>
-                     set #workflowType WftypeUpdate |> set #historyType HistorytypeContract |> set #progress (viaJSONToText ( WorkflowProgress ( Just(StateKeys (Just historyId) Nothing Nothing )) Nothing))
+                let initialWfpV :: Value = fromJust $ decode $ encode $ WorkflowProgress ( Just(StateKeys (Just historyId) Nothing Nothing )) Nothing
+                let workflow = newRecord |> set #refuser (Id "992fa416-37fc-4d69-ba44-ff3702129c7b") |> set #validfrom today |>
+                     set #workflowType WftypeUpdate |> set #historyType HistorytypeContract |> set #progress initialWfpV
                 putStrLn (show workflow)
                 setModal NewView { .. }
             Nothing -> do
-                let workflow = newRecord |> set #refuser (Id "3b95e3f1-b950-42c2-bb7f-60f3e67dbb79") |> set #validfrom today |>
+                user <- query @User |> fetchOne 
+                let workflow = newRecord |> set #refuser (get #id user) |> set #validfrom today |>
                         set #workflowType WftypeNew 
                 setModal NewView { .. }
         jumpToAction WorkflowsAction
@@ -83,4 +86,4 @@ instance Controller WorkflowsController where
                     redirectTo WorkflowsAction
 
 buildWorkflow workflow = workflow
-    |> fill @["refuser","historyType","workflowType","progress","validfrom"]
+    |> fill @["refuser","historyType","workflowType","validfrom"]

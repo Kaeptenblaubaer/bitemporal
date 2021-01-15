@@ -22,10 +22,11 @@ CREATE TABLE workflows (
     refuser UUID DEFAULT uuid_generate_v4() NOT NULL,
     history_type history_TYPE NOT NULL,
     workflow_type workflow_type NOT NULL,
-    progress TEXT NOT NULL,
+    progress JSONB NOT NULL,
     validfrom DATE NOT NULL,
     workflow_status TEXT DEFAULT 'initial' NOT NULL,
-    createdat TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL
+    createdat TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
+    progressb BYTEA NOT NULL
 );
 CREATE TABLE histories (
     id UUID DEFAULT uuid_generate_v4() PRIMARY KEY NOT NULL,
