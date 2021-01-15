@@ -63,13 +63,14 @@ queryVersionMutableValidfrom workflow = do
         let wfpM :: Maybe WorkflowProgress =  decode $ encode $ get #progress workflow
         let wfprogress :: WorkflowProgress = fromJust wfpM
         let validfrom = tshow $ get #validfrom workflow
-        let keys =  getContractKeys wfprogress
-                where getContractKeys (WorkflowProgress (Just (StateKeys h v c )) _) = (fromJust h,fromJust v)
+        let historyId =  getContracthistoryId wfprogress
+                where getContracthistoryId (WorkflowProgress (Just (StateKeys h v c )) _) = fromJust h
         let q :: Query = "SELECT * FROM versions v WHERE v.id in (SELECT max(id) FROM versions where refhistory = ? and validfrom <= ?)"
-        let p :: (Id History, Text) = (Id $ fst keys, validfrom)
+        let p :: (Id History, Text) = (Id historyId, validfrom)
         vs :: [Version]  <- sqlQuery  q p
+        let versionId = get #id $ fromJust $ head vs
         let q2 :: Query = "SELECT v FROM versions v WHERE refhistory = ? and v.id > ? and validfrom > ?"
-        let p2 :: (Id History, Id Version,Text) = (Id $ fst keys, Id $snd keys, validfrom)
+        let p2 :: (Id History, Id Version,Text) = (Id historyId, versionId, validfrom)
         shadowed :: [Version]  <- sqlQuery  q2 p2
         pure $ (fromJust $ head vs, shadowed)
 

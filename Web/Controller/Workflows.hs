@@ -18,17 +18,17 @@ instance Controller WorkflowsController where
     action NewWorkflowAction = do  
         today <- today
         now <- getCurrentTime
+        user <- query @User |> fetchOne 
         let historyIdMB = paramOrNothing @UUID "historyId"
         putStrLn ("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@historyId=" ++ (show historyIdMB))
         case historyIdMB of 
             Just historyId ->  do
                 let initialWfpV :: Value = fromJust $ decode $ encode $ WorkflowProgress ( Just(StateKeys (Just historyId) Nothing Nothing )) Nothing
-                let workflow = newRecord |> set #refuser (Id "992fa416-37fc-4d69-ba44-ff3702129c7b") |> set #validfrom today |>
-                     set #workflowType WftypeUpdate |> set #historyType HistorytypeContract |> set #progress initialWfpV
-                putStrLn (show workflow)
+                workflow <- newRecord |> set #refuser (get #id user) |> set #validfrom today |>
+                     set #workflowType WftypeUpdate |> set #historyType HistorytypeContract |> set #progress initialWfpV |> createRecord
+                putStrLn ("UpdateWF=" ++ show workflow)
                 setModal NewView { .. }
             Nothing -> do
-                user <- query @User |> fetchOne 
                 let workflow = newRecord |> set #refuser (get #id user) |> set #validfrom today |>
                         set #workflowType WftypeNew 
                 setModal NewView { .. }

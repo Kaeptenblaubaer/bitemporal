@@ -21,10 +21,18 @@ ALTER TABLE public.histories ENABLE TRIGGER ALL;
 
 ALTER TABLE public.versions DISABLE TRIGGER ALL;
 
+
+
+
+
 ALTER TABLE public.versions ENABLE TRIGGER ALL;
 
 
 ALTER TABLE public.contracts DISABLE TRIGGER ALL;
+
+
+
+
 
 ALTER TABLE public.contracts ENABLE TRIGGER ALL;
 
@@ -67,10 +75,14 @@ ALTER TABLE public.userroles ENABLE TRIGGER ALL;
 
 ALTER TABLE public.workflows DISABLE TRIGGER ALL;
 
+
+
+
+
 ALTER TABLE public.workflows ENABLE TRIGGER ALL;
 
 
-SELECT pg_catalog.setval('public.contracts_id_seq', 1, true);
+SELECT pg_catalog.setval('public.contracts_id_seq', 3, true);
 
 
 
@@ -82,7 +94,7 @@ SELECT pg_catalog.setval('public.tariffs_id_seq', 1, false);
 
 
 
-SELECT pg_catalog.setval('public.versions_id_seq', 1, true);
+SELECT pg_catalog.setval('public.versions_id_seq', 3, true);
 
 
 
