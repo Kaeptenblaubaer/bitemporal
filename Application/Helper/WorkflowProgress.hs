@@ -14,6 +14,7 @@ import Data.Maybe ( fromJust )
 import qualified Data.Text.Lazy.IO as T
 import qualified Data.Text.Lazy.Encoding as T
 import Data.Text (replace)
+import Generated.Types ( Workflow, Workflow'(progress) )
 
 data StateKeys = StateKeys  { history :: Maybe UUID , version :: Maybe Integer, state :: Maybe Integer } deriving (Show, Generic)
 data WorkflowProgress = WorkflowProgress {contract :: Maybe StateKeys, partner:: Maybe StateKeys } deriving (Show, Generic)
@@ -21,6 +22,9 @@ instance FromJSON StateKeys
 instance ToJSON StateKeys
 instance FromJSON WorkflowProgress
 instance ToJSON WorkflowProgress
+
+getWfp :: Workflow -> Maybe WorkflowProgress
+getWfp workflow  =  decode $ encode $ get #progress workflow
 
 wfpT :: Text
 wfpT = "{\"partner\":null,\"contract\":{\"state\":4,\"history\":\"8b5fc6bc-3146-4d57-8587-8f12cdf2cca7\",\"version\":4}}"

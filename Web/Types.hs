@@ -37,6 +37,10 @@ data WorkflowsController
     | UpdateWorkflowAction { workflowId :: !(Id Workflow) }
     | DeleteWorkflowAction { workflowId :: !(Id Workflow) }
     | NextWorkflowAction { workflowId :: !(Id Workflow) }
+    | CommitWorkflowAction
+    | RollbackWorkflowAction
+    | SuspendWorkflowAction
+    | ResumeWorkflowAction
     deriving (Eq, Show, Data)
 
 data HistoriesController

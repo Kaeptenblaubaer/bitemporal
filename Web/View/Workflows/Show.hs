@@ -21,7 +21,18 @@ instance View ShowView where
               height: 500px;   
             }
         </style>
-        <div id="jsoneditor"></div>
+        <div id="jsoneditor"></div> 
+        <table class="table"><thead>
+          <tr><td>Commands</td></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><a href={CommitWorkflowAction}>Commit</a></td>
+            <td><a href={RollbackWorkflowAction}>Rollback</a></td>
+            <td><a href={SuspendWorkflowAction}>Suspend</a></td>
+            <td><a href={ResumeWorkflowAction}>Resume</a></td>
+          </tr>
+          </tbody></table>
         <script data-api-key= {show $ encode $ get #progress workflow }>
           var progress = document.currentScript.dataset.apiKey;
           progress = progress.substring(1,progress.length-1)

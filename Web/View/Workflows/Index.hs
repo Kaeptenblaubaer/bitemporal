@@ -9,6 +9,9 @@ instance View IndexView where
             <ol class="breadcrumb">
                 <li class="breadcrumb-item active"><a href={WorkflowsAction}>Workflows</a></li>
             </ol>
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item active"><a href={HistoriesAction}>Histories</a></li>
+            </ol>
         </nav>
         <h1>Index <a href={pathTo NewWorkflowAction} class="btn btn-primary ml-4">+ New</a></h1>
         <div class="table-responsive">

@@ -16,55 +16,51 @@ maxday = fromGregorian 5874897 12 31
 instance Controller ContractsController where
 
     action ContractsAction = do
-        let workflowId = param @(Id Workflow) "workflowId"
-        workflow::Workflow <- fetch workflowId
+        workflow::Workflow <- getCurrentWorkflow
         contracts <- query @Contract |> fetch
         render IndexView { .. }
 
     action NewContractAction = do
-        workflowIdMB <- getSessionUUID "workflowId"
-        putStrLn (show workflowIdMB)
-        workflow::Workflow <- fetch (Id (fromJust workflowIdMB))
+        workflow::Workflow <- getCurrentWorkflow
+        let workflowId = get #id workflow
         contract::Contract <- createHistory workflow
         render NewView { .. }
 
     action ShowContractAction { contractId } = do
+        workflowId <- getCurrentWorkflowId
         contract <- fetch contractId
         render ShowView { .. }
 
     action EditContractAction = do
-        workflowIdMB <- getSessionUUID "workflowId"
-        putStrLn (show workflowIdMB)
-        workflow::Workflow <- fetch (Id (fromJust workflowIdMB))
+        workflow::Workflow <- getCurrentWorkflow
+        let workflowId = get #id workflow
         mutable :: (Contract,[Version]) <- queryMutableState workflow
         let contract = fst mutable
-        render EditView { .. }
+        render EditView { workflowId, .. }
 
     action UpdateContractAction { contractId } = do
+        workflowId <- getCurrentWorkflowId
         contract <- fetch contractId
         contract
             |> buildContract
             |> ifValid \case
-                Left contract -> render EditView { .. }
+                Left contract -> render EditView { workflowId,  .. }
                 Right contract -> do
                     contract <- contract |> updateRecord
                     setSuccessMessage "Contract updated"
                     redirectTo EditContractAction
 
     action CreateContractAction = do
+        workflowId <- getCurrentWorkflowId
         let contract = newRecord @Contract
-        workflowIdMB <-getSessionUUID "workflowId"
-        let workflowId = fromJust workflowIdMB
-        workflow :: Workflow <- fetch (Id workflowId)
-        putStrLn("####"++ (show workflow))
         contract
             |> buildContract
             |> ifValid \case
-                Left contract -> render NewView { .. } 
+                Left contract -> render NewView { workflowId, .. } 
                 Right contract -> do
                     contract <- contract |> createRecord
                     setSuccessMessage "Contract created"
-                    redirectToPath (pathTo ContractsAction <> "?workflowId= " ++ (show workflowId))
+                    redirectTo ContractsAction
 
     action DeleteContractAction { contractId } = do
         contract <- fetch contractId

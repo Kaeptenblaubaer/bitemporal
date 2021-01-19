@@ -28,7 +28,6 @@ class (KnownSymbol (GetTableName rec), rec ~ GetModelByTableName (GetTableName r
     getKey m = case decimal $ recordToInputValue m of
                                     Left _ -> -1
                                     Right ( i , _) -> i
-
     queryMutableState :: (?modelContext::ModelContext)=> Workflow -> IO (rec,[Version])
     queryMutableState workflow =  do
         mutable :: (Version,[Version]) <- queryVersionMutableValidfrom workflow 
@@ -60,8 +59,7 @@ instance CanVersion Contract
 queryVersionMutableValidfrom :: (?modelContext::ModelContext) => Workflow -> IO (Version,[Version])
 queryVersionMutableValidfrom workflow = do
         putStrLn ( "Workflow=" ++ (show workflow) )
-        let wfpM :: Maybe WorkflowProgress =  decode $ encode $ get #progress workflow
-        let wfprogress :: WorkflowProgress = fromJust wfpM
+        let wfprogress :: WorkflowProgress = fromJust $ getWfp workflow
         let validfrom = tshow $ get #validfrom workflow
         let historyId =  getContracthistoryId wfprogress
                 where getContracthistoryId (WorkflowProgress (Just (StateKeys h v c )) _) = fromJust h
@@ -74,5 +72,22 @@ queryVersionMutableValidfrom workflow = do
         shadowed :: [Version]  <- sqlQuery  q2 p2
         pure $ (fromJust $ head vs, shadowed)
 
- 
+getCurrentWorkflow :: (?context::ControllerContext, ?modelContext::ModelContext) => IO Workflow
+getCurrentWorkflow  = do
+    id <- getSessionUUID "workflowId"
+    putStrLn ("current workflowid = " ++ (show id))
+    wf :: Workflow <- fetch (Id (fromJust id))
+    pure wf
 
+getCurrentWorkflowId :: (?context::ControllerContext, ?modelContext::ModelContext) => IO (Id Workflow)
+getCurrentWorkflowId = do
+        workflow :: Workflow <- getCurrentWorkflow
+        pure (get #id workflow)
+    
+setCurrentWorkflowId :: (?context::ControllerContext) => Workflow -> IO ()
+setCurrentWorkflowId workflow = do
+    oldid <- getSessionUUID "workflowId"
+    putStrLn ("old workflowid = " ++ (show oldid))
+    setSession "workflowId" (show (get #id workflow)) 
+    newid <- getSessionUUID "workflowId"
+    putStrLn ("current workflowid = " ++ (show newid))

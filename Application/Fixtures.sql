@@ -16,6 +16,8 @@ SET SESSION AUTHORIZATION DEFAULT;
 
 ALTER TABLE public.histories DISABLE TRIGGER ALL;
 
+
+
 ALTER TABLE public.histories ENABLE TRIGGER ALL;
 
 
@@ -23,14 +25,10 @@ ALTER TABLE public.versions DISABLE TRIGGER ALL;
 
 
 
-
-
 ALTER TABLE public.versions ENABLE TRIGGER ALL;
 
 
 ALTER TABLE public.contracts DISABLE TRIGGER ALL;
-
-
 
 
 
@@ -74,8 +72,6 @@ ALTER TABLE public.userroles ENABLE TRIGGER ALL;
 
 
 ALTER TABLE public.workflows DISABLE TRIGGER ALL;
-
-
 
 
 
