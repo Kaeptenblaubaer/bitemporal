@@ -35,7 +35,11 @@ instance Controller ContractsController where
         workflow::Workflow <- getCurrentWorkflow
         let workflowId = get #id workflow
         mutable :: (Contract,[Version]) <- queryMutableState workflow
-        let contract = fst mutable
+        let msg :: Text = case (snd mutable) of
+                    [] -> "not retrospective"
+                    shadowed -> foldr  (++) "the following versions will be shadowed: "  (map (\v -> show $ get #validfrom v) shadowed)
+        setSuccessMessage msg
+        contract<- mutateHistory workflow $ fst mutable
         render EditView { workflowId, .. }
 
     action UpdateContractAction { contractId } = do

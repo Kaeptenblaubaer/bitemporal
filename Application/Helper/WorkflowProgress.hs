@@ -32,7 +32,13 @@ wfpT = "{\"partner\":null,\"contract\":{\"state\":4,\"history\":\"8b5fc6bc-3146-
 wfp :: WorkflowProgress
 wfp = WorkflowProgress (Just (StateKeys (Just "8b5fc6bc-3146-4d57-8587-8f12cdf2cca7") (Just 4) (Just 4))) Nothing
 
+getContracthistoryId :: WorkflowProgress -> UUID
+getContracthistoryId (WorkflowProgress (Just (StateKeys h v c )) _) = fromJust h
+getContractVersionIdMB :: WorkflowProgress -> Maybe Integer
+getContractVersionIdMB (WorkflowProgress (Just (StateKeys h v c )) _) = v
 
+setContractVersionId :: WorkflowProgress -> Integer -> WorkflowProgress
+setContractVersionId wfp vid = wfp {  = Nothing }
 wfpJ :: Data.ByteString.Lazy.Internal.ByteString
 wfpJ = encode wfp
 

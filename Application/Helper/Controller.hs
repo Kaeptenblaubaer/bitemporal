@@ -22,7 +22,13 @@ today :: IO (Day) -- :: (year,month,day)
 today = getCurrentTime >>= return . utctDay
 
 
-class (KnownSymbol (GetTableName rec), rec ~ GetModelByTableName (GetTableName rec), Record rec, CanCreate rec,Fetchable (QueryBuilder (GetTableName rec))  rec, FromRow rec, HasField "id" rec (Id rec), Show (PrimaryKey (GetTableName rec)), HasField "refhistory" rec (Id History),SetField "refhistory" rec (Id History), HasField "validfromversion" rec (Id Version), SetField "validfromversion" rec (Id Version), HasField "validthruversion" rec (Maybe(Id Version))) => CanVersion rec where
+class (KnownSymbol (GetTableName rec), rec ~ GetModelByTableName (GetTableName rec), Record rec, CanCreate rec,Fetchable (QueryBuilder (GetTableName rec))  rec, FromRow rec,
+    HasField "id" rec (Id rec), Show (PrimaryKey (GetTableName rec)), HasField "refhistory" rec (Id History),SetField "refhistory" rec (Id History),
+    HasField "validfromversion" rec (Id Version), SetField "validfromversion" rec (Id Version),
+    HasField "validthruversion" rec (Maybe(Id Version)), SetField "validthruversion" rec (Maybe (Id Version)),
+    HasField "content" rec Text, SetField "content" rec Text) => CanVersion rec 
+    where
+
     getKey :: rec -> Integer
     default getKey :: rec -> Integer
     getKey m = case decimal $ recordToInputValue m of
@@ -42,17 +48,31 @@ class (KnownSymbol (GetTableName rec), rec ~ GetModelByTableName (GetTableName r
 
     createHistory :: (?modelContext::ModelContext) => Workflow -> IO rec
     createHistory workflow = do
-                        history ::History <- newRecord |> set #historyType (get #historyType workflow) |> createRecord
-                        let historyUUID ::UUID = bubu $ get #id history
-                                                    where bubu (Id uuid) = uuid
-                        version :: Version <- newRecord |> set #refhistory (get #id history) |>  set #validfrom (get #validfrom workflow) |> createRecord
-                        let versionId :: Integer = bubu $ get #id version
-                                                    where bubu (Id intid) = intid
-                        state ::rec <- newRecord |> set #refhistory (get #id history) |> set #validfromversion (get #id version) |> createRecord
-                        uptodate ::Workflow <- workflow |> set #progress ( toJSON $ WorkflowProgress (Just(StateKeys (Just historyUUID) (Just versionId) (Just (getKey state)) )) Nothing) |> updateRecord
-                        putStrLn ("hier ist Workflow mit JSON " ++ (show (get #progress uptodate)))
-                        pure state
+        history ::History <- newRecord |> set #historyType (get #historyType workflow) |> createRecord
+        let historyUUID ::UUID = bubu $ get #id history
+                                    where bubu (Id uuid) = uuid
+        version :: Version <- newRecord |> set #refhistory (get #id history) |>  set #validfrom (get #validfrom workflow) |> createRecord
+        let versionId :: Integer = bubu $ get #id version
+                                    where bubu (Id intid) = intid
+        state ::rec <- newRecord |> set #refhistory (get #id history) |> set #validfromversion (get #id version) |> createRecord
+        uptodate ::Workflow <- workflow |> set #progress ( toJSON $ WorkflowProgress (Just(StateKeys (Just historyUUID) (Just versionId) (Just (getKey state)) )) Nothing) |> updateRecord
+        putStrLn ("hier ist Workflow mit JSON " ++ (show (get #progress uptodate)))
+        pure state
  
+    mutateHistory :: (?modelContext::ModelContext) => Workflow -> rec -> IO rec
+    mutateHistory workflow state = do
+        let wfprogress :: WorkflowProgress = fromJust $ getWfp workflow
+        let versionIdMB = getContractVersionIdMB wfprogress
+        case versionIdMB of
+            v -> pure state
+            _ -> do
+            let validfrom = tshow $ get #validfrom workflow
+            let historyId =  get #refhistory state
+            version :: Version <- newRecord |> set #refhistory historyId |> set #validfrom (get #validfrom workflow) |> createRecord
+            newState :: rec <- newRecord |> set #refhistory historyId |> set #validfromversion (get #id version) |>
+                set #content (get #content state) |> createRecord
+            -- let wfp2 = wfprogress { contract = (contract wfprogress) {"version" }   }
+            pure newState
 
 instance CanVersion Contract
 
@@ -62,7 +82,6 @@ queryVersionMutableValidfrom workflow = do
         let wfprogress :: WorkflowProgress = fromJust $ getWfp workflow
         let validfrom = tshow $ get #validfrom workflow
         let historyId =  getContracthistoryId wfprogress
-                where getContracthistoryId (WorkflowProgress (Just (StateKeys h v c )) _) = fromJust h
         let q :: Query = "SELECT * FROM versions v WHERE v.id in (SELECT max(id) FROM versions where refhistory = ? and validfrom <= ?)"
         let p :: (Id History, Text) = (Id historyId, validfrom)
         vs :: [Version]  <- sqlQuery  q p
