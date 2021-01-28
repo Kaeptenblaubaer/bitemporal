@@ -13,7 +13,7 @@ data ContractsController
     | NewContractAction 
     | ShowContractAction { contractId :: !(Id Contract) }
     | CreateContractAction
-    | EditContractAction
+    | EditContractAction { contractId :: !(Id Contract) }
     | UpdateContractAction { contractId :: !(Id Contract) }
     | DeleteContractAction { contractId :: !(Id Contract) }
     deriving (Eq, Show, Data)

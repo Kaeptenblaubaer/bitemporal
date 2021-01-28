@@ -32,7 +32,7 @@ renderContract contract = [hsx|
     <tr>
         <td>{contract}</td>
         <td><a href={ShowContractAction (get #id contract)}>Show</a></td>
-        <td><a href={EditContractAction } class="text-muted">Edit</a></td>
+        <td><a href={EditContractAction (get #id contract)} class="text-muted">Edit</a></td>
         <td><a href={DeleteContractAction (get #id contract)} class="js-delete text-muted">Delete</a></td>
     </tr>
 |]

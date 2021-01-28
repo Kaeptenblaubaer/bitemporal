@@ -23,7 +23,7 @@ instance Controller ContractsController where
     action NewContractAction = do
         workflow::Workflow <- getCurrentWorkflow
         let workflowId = get #id workflow
-        contract::Contract <- createHistory workflow
+        let contract ::Contract = newRecord 
         render NewView { .. }
 
     action ShowContractAction { contractId } = do
@@ -31,38 +31,36 @@ instance Controller ContractsController where
         contract <- fetch contractId
         render ShowView { .. }
 
-    action EditContractAction = do
+    action EditContractAction { contractId } = do
         workflow::Workflow <- getCurrentWorkflow
         let workflowId = get #id workflow
-        mutable :: (Contract,[Version]) <- queryMutableState workflow
-        let msg :: Text = case (snd mutable) of
-                    [] -> "not retrospective"
-                    shadowed -> foldr  (++) "the following versions will be shadowed: "  (map (\v -> show $ get #validfrom v) shadowed)
-        setSuccessMessage msg
-        contract<- mutateHistory workflow $ fst mutable
+        contract<- fetch contractId
         render EditView { workflowId, .. }
 
-    action UpdateContractAction { contractId } = do
+    action UpdateContractAction { contractId } = do 
         workflowId <- getCurrentWorkflowId
+        workflow <- fetch workflowId
         contract <- fetch contractId
         contract
             |> buildContract
             |> ifValid \case
                 Left contract -> render EditView { workflowId,  .. }
                 Right contract -> do
-                    contract <- contract |> updateRecord
+                    contract <- mutateHistory workflow contract
                     setSuccessMessage "Contract updated"
-                    redirectTo EditContractAction
+                    let contractId = get #id contract
+                    redirectTo EditContractAction {..}
 
     action CreateContractAction = do
         workflowId <- getCurrentWorkflowId
+        workflow :: Workflow <- fetch workflowId
         let contract = newRecord @Contract
         contract
             |> buildContract
             |> ifValid \case
                 Left contract -> render NewView { workflowId, .. } 
                 Right contract -> do
-                    contract <- contract |> createRecord
+                    contract :: Contract <- createHistory workflow contract
                     setSuccessMessage "Contract created"
                     redirectTo ContractsAction
 

@@ -26,6 +26,8 @@ instance ToJSON WorkflowProgress
 getWfp :: Workflow -> Maybe WorkflowProgress
 getWfp workflow  =  decode $ encode $ get #progress workflow
 
+
+
 wfpT :: Text
 wfpT = "{\"partner\":null,\"contract\":{\"state\":4,\"history\":\"8b5fc6bc-3146-4d57-8587-8f12cdf2cca7\",\"version\":4}}"
 
@@ -38,7 +40,8 @@ getContractVersionIdMB :: WorkflowProgress -> Maybe Integer
 getContractVersionIdMB (WorkflowProgress (Just (StateKeys h v c )) _) = v
 
 setContractVersionId :: WorkflowProgress -> Integer -> WorkflowProgress
-setContractVersionId wfp vid = wfp {  = Nothing }
+setContractVersionId (WorkflowProgress (Just (StateKeys h v c )) partner) vid = WorkflowProgress (Just (StateKeys h (Just vid) c )) partner
+
 wfpJ :: Data.ByteString.Lazy.Internal.ByteString
 wfpJ = encode wfp
 
@@ -48,5 +51,9 @@ wfpMB = decode wfpJ
 wfp2 :: WorkflowProgress
 wfp2 = fromJust wfpMB
 
-wfpDB :: Value = fromJust $ decode $ encode wfp
+wfpDB :: Value = fromJust $ decode $ encode wfp 
 
+setWfp :: Workflow -> WorkflowProgress -> Workflow
+setWfp wf wfp = wf |> set #progress ( fromJust $ decode $ encode wfp )
+
+wf2 = setWfp (newRecord ::Workflow) wfp

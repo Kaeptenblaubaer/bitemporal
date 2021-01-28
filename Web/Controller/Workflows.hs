@@ -8,6 +8,7 @@ import Web.View.Workflows.Show
 import Application.Helper.Controller (createHistory, getKey, queryMutableState, today )
 import Application.Helper.WorkflowProgress
 import Data.Maybe ( fromJust )
+import Data.ByteString.Lazy as BSL (ByteString,fromStrict)
 
 instance Controller WorkflowsController where
     action WorkflowsAction = do
@@ -23,9 +24,8 @@ instance Controller WorkflowsController where
         case historyIdMB of 
             Just historyId ->  do
                 let initialWfpV :: Value = fromJust $ decode $ encode $ WorkflowProgress ( Just(StateKeys (Just historyId) Nothing Nothing )) Nothing
-                workflow <- newRecord |> set #refuser (get #id user) |> set #validfrom today |>
-                     set #workflowType WftypeUpdate |> set #historyType HistorytypeContract |> set #progress initialWfpV |> createRecord
-                setCurrentWorkflowId workflow
+                let workflow = newRecord |> set #refuser (get #id user) |> set #validfrom today |>
+                     set #workflowType WftypeUpdate |> set #historyType HistorytypeContract |> set #progress initialWfpV 
                 setModal NewView { .. }
             Nothing -> do
                 let workflow = newRecord |> set #refuser (get #id user) |> set #validfrom today |>
@@ -56,7 +56,7 @@ instance Controller WorkflowsController where
         let workflow = newRecord @Workflow
         workflow
             |> buildWorkflow
-            |> ifValid \case
+            |> ifValid \case 
                 Left workflow -> render NewView { .. } 
                 Right workflow -> do
                     workflow <- workflow |> createRecord
@@ -75,31 +75,37 @@ instance Controller WorkflowsController where
         workflow <- getCurrentWorkflow
         putStrLn ("NextWF wf="++ (show workflow))
         let wfpMB = getWfp workflow
-        case get #historyType workflow of
-            HistorytypeContract -> do
-                case wfpMB of 
-                    Just wfp -> case contract wfp of
-                        Just c  -> case history c of
-                            Just h -> do
-                                    putStrLn "vor EditContract History==h"
-                                    redirectTo EditContractAction
-                            Nothing -> do
-                                    setErrorMessage ("SHOULDN'T: history is null")
-                                    redirectTo $ ShowWorkflowAction workflowId 
-                        Nothing -> do
-                                    setErrorMessage ("SHOULDN'T: contract is null")
-                                    redirectTo NewContractAction 
-                    Nothing -> case get #workflowType workflow of
-                                WftypeNew -> do
-                                    putStrLn "vor NewContract wfp == Nothing"
-                                    redirectTo NewContractAction
-                                wftype -> do
-                                    setErrorMessage ("SHOULDN'T: " ++ (show wftype) ++ " with empty progress data")
-                                    redirectTo NewContractAction 
-            entitytype -> do
-                setErrorMessage ((show entitytype) ++ "not implemented")
-                redirectTo WorkflowsAction
+        case get #workflowType workflow of
+            WftypeNew -> case wfpMB of 
+                Just wfp -> case contract wfp of
+                    Just (StateKeys _ _ (Just rid)) -> do
+                        redirectTo $ EditContractAction (Id rid)
+                    _ -> do
+                        setErrorMessage ("SHOULDN'T: history is null")
+                        redirectTo $ ShowWorkflowAction workflowId 
+                Nothing -> do
+                        redirectTo NewContractAction 
+            WftypeUpdate -> case wfpMB of 
+                Just wfp -> case contract wfp of
+                    Just (StateKeys (Just hid) Nothing Nothing) -> do
+                        mutable :: (Contract,[Version]) <- queryMutableState workflow
+                        let msg :: Text = case (snd mutable) of
+                                [] -> "not retrospective"
+                                shadowed -> "the following versions will be shadowed: " ++ foldr  (++) ""  (map (\v -> show $ get #validfrom v) shadowed)
+                        setSuccessMessage msg
+                        redirectTo $ EditContractAction (get #id (fst mutable))
+                    Just (StateKeys _ _ (Just rid)) -> do
+                        redirectTo $ EditContractAction (Id rid)
+                    Nothing -> do
+                        redirectTo NewContractAction
+                    _ -> do
+                        setErrorMessage ("SHOULDN'T: history is null")
+                        redirectTo $ ShowWorkflowAction workflowId 
+                Nothing -> do
+                        setErrorMessage ("SHOULDN'T: wfp is null")
+                        redirectTo $ ShowWorkflowAction workflowId 
 
+       
     action CommitWorkflowAction = do
         workflow <- getCurrentWorkflow
         let workflowId = get #id workflow
@@ -151,4 +157,5 @@ instance Controller WorkflowsController where
         redirectTo $ ShowWorkflowAction workflowId
 
 buildWorkflow workflow = workflow
-    |> fill @["refuser","historyType","workflowType","validfrom"]
+    |> fill @["refuser","historyType","workflowType","validfrom"] |> set #progress val
+        where val =fromJust $ decode $ fromStrict $ param @Web.Controller.Prelude.ByteString "progress"

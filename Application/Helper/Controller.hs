@@ -46,15 +46,15 @@ class (KnownSymbol (GetTableName rec), rec ~ GetModelByTableName (GetTableName r
         
         pure (mstate,snd mutable)
 
-    createHistory :: (?modelContext::ModelContext) => Workflow -> IO rec
-    createHistory workflow = do
+    createHistory :: (?modelContext::ModelContext) => Workflow -> rec -> IO rec
+    createHistory workflow state = do
         history ::History <- newRecord |> set #historyType (get #historyType workflow) |> createRecord
         let historyUUID ::UUID = bubu $ get #id history
                                     where bubu (Id uuid) = uuid
         version :: Version <- newRecord |> set #refhistory (get #id history) |>  set #validfrom (get #validfrom workflow) |> createRecord
         let versionId :: Integer = bubu $ get #id version
                                     where bubu (Id intid) = intid
-        state ::rec <- newRecord |> set #refhistory (get #id history) |> set #validfromversion (get #id version) |> createRecord
+        state ::rec <- state |> set #refhistory (get #id history) |> set #validfromversion (get #id version) |> createRecord
         uptodate ::Workflow <- workflow |> set #progress ( toJSON $ WorkflowProgress (Just(StateKeys (Just historyUUID) (Just versionId) (Just (getKey state)) )) Nothing) |> updateRecord
         putStrLn ("hier ist Workflow mit JSON " ++ (show (get #progress uptodate)))
         pure state
@@ -64,21 +64,22 @@ class (KnownSymbol (GetTableName rec), rec ~ GetModelByTableName (GetTableName r
         let wfprogress :: WorkflowProgress = fromJust $ getWfp workflow
         let versionIdMB = getContractVersionIdMB wfprogress
         case versionIdMB of
-            v -> pure state
-            _ -> do
-            let validfrom = tshow $ get #validfrom workflow
-            let historyId =  get #refhistory state
-            version :: Version <- newRecord |> set #refhistory historyId |> set #validfrom (get #validfrom workflow) |> createRecord
-            newState :: rec <- newRecord |> set #refhistory historyId |> set #validfromversion (get #id version) |>
-                set #content (get #content state) |> createRecord
-            -- let wfp2 = wfprogress { contract = (contract wfprogress) {"version" }   }
-            pure newState
+            Just v -> pure state
+            Nothing -> do
+                putStrLn "mutateHistory Update new Version"
+                let validfrom = tshow $ get #validfrom workflow
+                let historyId =  get #refhistory state
+                version :: Version <- newRecord |> set #refhistory historyId |> set #validfrom (get #validfrom workflow) |> createRecord
+                newState :: rec <- newRecord |> set #refhistory historyId |> set #validfromversion (get #id version) |>
+                    set #content (get #content state) |> createRecord
+                workflow <- setWfp workflow (setContractVersionId wfprogress $ fromId $ get #id version ) |> updateRecord
+                pure newState
 
 instance CanVersion Contract
 
 queryVersionMutableValidfrom :: (?modelContext::ModelContext) => Workflow -> IO (Version,[Version])
 queryVersionMutableValidfrom workflow = do
-        putStrLn ( "Workflow=" ++ (show workflow) )
+        putStrLn ( "queryVersionMutableValidfrom Workflow=" ++ (show workflow) )
         let wfprogress :: WorkflowProgress = fromJust $ getWfp workflow
         let validfrom = tshow $ get #validfrom workflow
         let historyId =  getContracthistoryId wfprogress
@@ -86,9 +87,11 @@ queryVersionMutableValidfrom workflow = do
         let p :: (Id History, Text) = (Id historyId, validfrom)
         vs :: [Version]  <- sqlQuery  q p
         let versionId = get #id $ fromJust $ head vs
-        let q2 :: Query = "SELECT v FROM versions v WHERE refhistory = ? and v.id > ? and validfrom > ?"
+        putStrLn ( "queryVersionMutableValidfrom versionid=" ++ (show versionId ))
+        let q2 :: Query = "SELECT * FROM versions v WHERE refhistory = ? and v.id > ? and validfrom > ?"
         let p2 :: (Id History, Id Version,Text) = (Id historyId, versionId, validfrom)
         shadowed :: [Version]  <- sqlQuery  q2 p2
+        putStrLn ( "queryVersionMutableValidfrom shadowed=" ++ (show shadowed ))
         pure $ (fromJust $ head vs, shadowed)
 
 getCurrentWorkflow :: (?context::ControllerContext, ?modelContext::ModelContext) => IO Workflow
@@ -110,3 +113,6 @@ setCurrentWorkflowId workflow = do
     setSession "workflowId" (show (get #id workflow)) 
     newid <- getSessionUUID "workflowId"
     putStrLn ("current workflowid = " ++ (show newid))
+
+fromId :: Id' table -> PrimaryKey table
+fromId (Id key) = key
