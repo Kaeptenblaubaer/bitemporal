@@ -9,7 +9,7 @@ import Application.Helper.Controller (createHistory, getKey, queryMutableState, 
 import Application.Helper.WorkflowProgress
 import Data.Maybe ( fromJust )
 import Data.ByteString.Lazy as BSL (ByteString,fromStrict)
-
+import Data.Text.Encoding(encodeUtf8)
 instance Controller WorkflowsController where
     action WorkflowsAction = do
         let validfrom = paramOrNothing @Day "validfrom"
@@ -23,7 +23,7 @@ instance Controller WorkflowsController where
         let historyIdMB = paramOrNothing @UUID "historyId"
         case historyIdMB of 
             Just historyId ->  do
-                let initialWfpV :: Value = fromJust $ decode $ encode $ WorkflowProgress ( Just(StateKeys (Just historyId) Nothing Nothing )) Nothing
+                let initialWfpV :: Value = fromJust $ decode $ encode $ WorkflowProgress ( Just(StateKeys (Just historyId) Nothing Nothing Nothing)) Nothing
                 let workflow = newRecord |> set #refuser (get #id user) |> set #validfrom today |>
                      set #workflowType WftypeUpdate |> set #historyType HistorytypeContract |> set #progress initialWfpV 
                 setModal NewView { .. }
@@ -35,6 +35,7 @@ instance Controller WorkflowsController where
 
     action ShowWorkflowAction { workflowId } = do
         workflow <- fetch workflowId
+        setSession "workflowId" (show workflowId)
         render ShowView { .. }
 
     action EditWorkflowAction { workflowId } = do
@@ -78,7 +79,7 @@ instance Controller WorkflowsController where
         case get #workflowType workflow of
             WftypeNew -> case wfpMB of 
                 Just wfp -> case contract wfp of
-                    Just (StateKeys _ _ (Just rid)) -> do
+                    Just (StateKeys _ _ (Just rid) _) -> do
                         redirectTo $ EditContractAction (Id rid)
                     _ -> do
                         setErrorMessage ("SHOULDN'T: history is null")
@@ -87,14 +88,14 @@ instance Controller WorkflowsController where
                         redirectTo NewContractAction 
             WftypeUpdate -> case wfpMB of 
                 Just wfp -> case contract wfp of
-                    Just (StateKeys (Just hid) Nothing Nothing) -> do
+                    Just (StateKeys (Just hid) Nothing Nothing Nothing) -> do
                         mutable :: (Contract,[Version]) <- queryMutableState workflow
                         let msg :: Text = case (snd mutable) of
                                 [] -> "not retrospective"
                                 shadowed -> "the following versions will be shadowed: " ++ foldr  (++) ""  (map (\v -> show $ get #validfrom v) shadowed)
                         setSuccessMessage msg
                         redirectTo $ EditContractAction (get #id (fst mutable))
-                    Just (StateKeys _ _ (Just rid)) -> do
+                    Just (StateKeys _ _ (Just rid) _) -> do
                         redirectTo $ EditContractAction (Id rid)
                     Nothing -> do
                         redirectTo NewContractAction
@@ -119,20 +120,32 @@ instance Controller WorkflowsController where
                             Just h -> do
                                 case version c of
                                     Just v -> do
-                                        setSuccessMessage $ "version=" ++ show v
-                                        v :: Version <- fetch (Id v) 
-                                        v2 <- v |> set #committed True |> updateRecord
-                                        w <- workflow |> set #workflowStatus "committed" |> updateRecord
-                                        putStrLn "huhu"
-                                        redirectTo $ ShowWorkflowAction workflowId 
+                                        case state c of
+                                            Just s -> do
+                                                setSuccessMessage $ "version=" ++ show v
+                                                newVersion :: Version <- fetch (Id v) 
+                                                newVersion |>set #committed True |> updateRecord 
+                                                w <- workflow |> set #workflowStatus "committed" |> updateRecord
+                                                sOld :: [Contract] <- query @ Contract |> filterWhere (#refhistory,(Id h)) |> 
+                                                    filterWhereSql(#validfromversion,"<> " ++ encodeUtf8( show v)) |>
+                                                    filterWhere(#validthruversion,Nothing) |> fetch
+                                                case head sOld of
+                                                    Just sOld -> do
+                                                            sUpd :: Contract <- sOld |> set #validthruversion (Just (Id v)) |> updateRecord
+                                                            putStrLn "predecessor terminated"
+                                                    Nothing -> putStrLn "no predecessor"
+                                                redirectTo $ ShowWorkflowAction workflowId 
+                                            Nothing -> do
+                                                setErrorMessage $ "cannot commit: state is null h=" ++ show h ++ "v=" ++ show v
+                                                redirectTo $ ShowWorkflowAction workflowId 
                                     Nothing -> do
-                                        setErrorMessage $ "No version history=" ++ show h
+                                        setErrorMessage $ "cannot commit: version is null h=" ++ show h
                                         redirectTo $ ShowWorkflowAction workflowId 
                             Nothing -> do
-                                    setErrorMessage ("SHOULDN'T: history is null")
+                                    setErrorMessage ("cannot commit: history is null")
                                     redirectTo $ ShowWorkflowAction workflowId 
                         Nothing -> do
-                                    setErrorMessage ("SHOULDN'T: contract is null")
+                                    setErrorMessage ("cannot commit, SHOULDN'T: contract is null")
                                     redirectTo $ ShowWorkflowAction workflowId 
                     Nothing -> do
                             setErrorMessage "SHOULDN'T: empty progress data"
@@ -153,6 +166,7 @@ instance Controller WorkflowsController where
 
     action ResumeWorkflowAction = do
         workflowId <- getCurrentWorkflowId
+        setSession "workflowId" $ show workflowId
         putStrLn ("ToResumeWF wf="++ (show workflowId))
         redirectTo $ ShowWorkflowAction workflowId
 
