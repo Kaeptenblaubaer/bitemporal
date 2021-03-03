@@ -39,7 +39,7 @@ instance Controller ContractsController where
 
     action UpdateContractAction { contractId } = do 
         workflowId <- getCurrentWorkflowId
-        workflow <- fetch workflowId
+        workflow <- fetch workflowId 
         contract <- fetch contractId
         contract
             |> buildContract
@@ -71,4 +71,4 @@ instance Controller ContractsController where
         redirectTo ContractsAction
 
 buildContract contract = contract
-    |> fill @'[ "refhistory" ,"validfromversion" ,"validthruversion", "content"]
+    |> fill @'[ "refhistory" ,"refvalidfromversion" ,"refvalidthruversion", "content"]

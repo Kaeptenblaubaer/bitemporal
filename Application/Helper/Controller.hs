@@ -24,8 +24,8 @@ today = getCurrentTime >>= return . utctDay
 
 class (KnownSymbol (GetTableName rec), rec ~ GetModelByTableName (GetTableName rec), Record rec, CanCreate rec,Fetchable (QueryBuilder (GetTableName rec))  rec, FromRow rec,
     HasField "id" rec (Id rec), Show (PrimaryKey (GetTableName rec)), PrimaryKey (GetTableName rec) ~ Integer, HasField "refhistory" rec (Id History),SetField "refhistory" rec (Id History),
-    HasField "validfromversion" rec (Id Version), SetField "validfromversion" rec (Id Version),
-    HasField "validthruversion" rec (Maybe(Id Version)), SetField "validthruversion" rec (Maybe (Id Version)),
+    HasField "refvalidfromversion" rec (Id Version), SetField "refvalidfromversion" rec (Id Version),
+    HasField "refvalidthruversion" rec (Maybe(Id Version)), SetField "refvalidthruversion" rec (Maybe (Id Version)),
     HasField "content" rec Text, SetField "content" rec Text) => CanVersion rec 
     where
 
@@ -39,10 +39,10 @@ class (KnownSymbol (GetTableName rec), rec ~ GetModelByTableName (GetTableName r
         mutable :: (Version,[Version]) <- queryVersionMutableValidfrom workflow 
         let h = get #refhistory $ fst mutable
         let v = get #id $ fst mutable
-        mstate <- query @rec |> filterWhere(#refhistory, h) |> filterWhereSql (#validfromversion, encodeUtf8("<= " ++ (show v))) |>
+        mstate <- query @rec |> filterWhere(#refhistory, h) |> filterWhereSql (#refvalidfromversion, encodeUtf8("<= " ++ (show v))) |>
                             queryOr 
-                                 (filterWhereSql (#validthruversion, encodeUtf8("> " ++ (show v))))
-                                 (filterWhereSql (#validthruversion, "is null")) |> fetchOne
+                                 (filterWhereSql (#refvalidthruversion, encodeUtf8("> " ++ (show v))))
+                                 (filterWhereSql (#refvalidthruversion, "is null")) |> fetchOne
         
         pure (mstate,snd mutable)
 
@@ -54,7 +54,7 @@ class (KnownSymbol (GetTableName rec), rec ~ GetModelByTableName (GetTableName r
         version :: Version <- newRecord |> set #refhistory (get #id history) |>  set #validfrom (get #validfrom workflow) |> createRecord
         let versionId :: Integer = bubu $ get #id version
                                     where bubu (Id intid) = intid
-        state ::rec <- state |> set #refhistory (get #id history) |> set #validfromversion (get #id version) |> createRecord
+        state ::rec <- state |> set #refhistory (get #id history) |> set #refvalidfromversion (get #id version) |> createRecord
         uptodate ::Workflow <- workflow |> set #progress ( toJSON $ WorkflowProgress (Just(StateKeys (Just historyUUID) (Just versionId) (Just (getKey state)) Nothing)) Nothing) |> updateRecord
         putStrLn ("hier ist Workflow mit JSON " ++ (show (get #progress uptodate)))
         pure state
@@ -70,7 +70,7 @@ class (KnownSymbol (GetTableName rec), rec ~ GetModelByTableName (GetTableName r
                 let validfrom = tshow $ get #validfrom workflow
                 let historyId =  get #refhistory state
                 version :: Version <- newRecord |> set #refhistory historyId |> set #validfrom (get #validfrom workflow) |> createRecord
-                newState :: rec <- newRecord |> set #refhistory historyId |> set #validfromversion (get #id version) |>
+                newState :: rec <- newRecord |> set #refhistory historyId |> set #refvalidfromversion (get #id version) |>
                     set #content (get #content state) |> createRecord
                 workflow <- setWfp workflow ( upd (fromId $ get #id version ) (fromId $ get #id newState ) wfprogress) |> updateRecord                  
                 pure newState

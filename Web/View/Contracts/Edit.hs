@@ -19,8 +19,8 @@ instance View EditView where
 
 renderForm :: Contract -> Html
 renderForm contract = formFor contract [hsx|
-    {(textField #validfromversion)}
-    {(textField #validthruversion)}
+    {(textField #refvalidfromversion)}
+    {(textField #refvalidthruversion)}
     {(textField #refhistory)}
     {(textField #content)}
     {submitButton}

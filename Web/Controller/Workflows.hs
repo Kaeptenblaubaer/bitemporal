@@ -127,13 +127,18 @@ instance Controller WorkflowsController where
                                                 newVersion |>set #committed True |> updateRecord 
                                                 w <- workflow |> set #workflowStatus "committed" |> updateRecord
                                                 sOld :: [Contract] <- query @ Contract |> filterWhere (#refhistory,(Id h)) |> 
-                                                    filterWhereSql(#validfromversion,"<> " ++ encodeUtf8( show v)) |>
-                                                    filterWhere(#validthruversion,Nothing) |> fetch
+                                                    filterWhereSql(#refvalidfromversion,"<> " ++ encodeUtf8( show v)) |>
+                                                    filterWhere(#refvalidthruversion,Nothing) |> fetch
                                                 case head sOld of
                                                     Just sOld -> do
-                                                            sUpd :: Contract <- sOld |> set #validthruversion (Just (Id v)) |> updateRecord
+                                                            sUpd :: Contract <- sOld |> set #refvalidthruversion (Just (Id v)) |> updateRecord
                                                             putStrLn "predecessor terminated"
                                                     Nothing -> putStrLn "no predecessor"
+                                                case getShadowed wfp of
+                                                    Nothing -> putStrLn "none shadowed"
+                                                    Just (shadow,shadowed) -> do
+                                                        updated :: [Version]<- sqlQuery "update version set refshadowed = ? where id in ?" (shadow, In shadowed)
+                                                        putStrLn "updated"
                                                 redirectTo $ ShowWorkflowAction workflowId 
                                             Nothing -> do
                                                 setErrorMessage $ "cannot commit: state is null h=" ++ show h ++ "v=" ++ show v

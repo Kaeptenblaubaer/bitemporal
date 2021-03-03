@@ -40,8 +40,8 @@ setContractVersionId vid (WorkflowProgress (Just (StateKeys h v c sh)) partner) 
 setContractId :: Integer -> WorkflowProgress -> WorkflowProgress
 setContractId sid (WorkflowProgress (Just (StateKeys h v c sh)) partner)  = WorkflowProgress (Just (StateKeys h v (Just sid) sh)) partner
 
-getShadowed :: WorkflowProgress -> (Integer,[Integer])
-getShadowed (WorkflowProgress (Just (StateKeys h v c shadowed)) partner) = fromJust shadowed
+getShadowed :: WorkflowProgress -> Maybe (Integer,[Integer])
+getShadowed (WorkflowProgress (Just (StateKeys h v c shadowed)) partner) = shadowed
 
 setShadowed :: WorkflowProgress -> (Integer,[Integer]) -> WorkflowProgress
 setShadowed (WorkflowProgress (Just (StateKeys h v c sh)) partner) shadowed = WorkflowProgress (Just (StateKeys h v c (Just shadowed))) partner

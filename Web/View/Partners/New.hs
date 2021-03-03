@@ -17,8 +17,8 @@ instance View NewView where
 
 renderForm :: Partner -> Html
 renderForm partner = formFor partner [hsx|
-    {(textField #validfromversion)}
-    {(textField #validthruversion)}
+    {(textField #refvalidfromversion)}
+    {(textField #refvalidthruversion)}
     {(textField #refhistory)}
     {(textField #content)}
     {submitButton}

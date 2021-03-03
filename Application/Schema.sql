@@ -38,19 +38,20 @@ CREATE TABLE versions (
     refhistory UUID NOT NULL,
     validfrom DATE DEFAULT NOW() NOT NULL,
     createdat TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
-    "committed" BOOLEAN DEFAULT false NOT NULL
+    "committed" BOOLEAN DEFAULT false NOT NULL,
+    refshadowedby INT DEFAULT NULL
 );
 CREATE TABLE contracts (
     id BIGSERIAL PRIMARY KEY NOT NULL,
-    validfromversion INT NOT NULL,
-    validthruversion INT DEFAULT NULL,
+    refvalidfromversion INT NOT NULL,
+    refvalidthruversion INT DEFAULT NULL,
     refhistory UUID DEFAULT uuid_generate_v4() NOT NULL,
     content TEXT NOT NULL
 );
 CREATE TABLE partners (
     id BIGSERIAL PRIMARY KEY NOT NULL,
-    validfromversion INT NOT NULL,
-    validthruversion INT DEFAULT NULL,
+    refvalidfromversion INT NOT NULL,
+    refvalidthruversion INT DEFAULT NULL,
     refhistory UUID DEFAULT uuid_generate_v4() NOT NULL,
     content TEXT NOT NULL
 );
@@ -62,12 +63,13 @@ CREATE TABLE tariffs (
     content TEXT NOT NULL
 );
 ALTER TABLE contracts ADD CONSTRAINT contracts_ref_refhistory FOREIGN KEY (refhistory) REFERENCES histories (id) ON DELETE CASCADE;
-ALTER TABLE contracts ADD CONSTRAINT contracts_ref_validfromversion FOREIGN KEY (validfromversion) REFERENCES versions (id) ON DELETE NO ACTION;
-ALTER TABLE contracts ADD CONSTRAINT contracts_ref_validthruversion FOREIGN KEY (validthruversion) REFERENCES versions (id) ON DELETE SET NULL;
+ALTER TABLE contracts ADD CONSTRAINT contracts_ref_validfromversion FOREIGN KEY (refvalidfromversion) REFERENCES versions (id) ON DELETE NO ACTION;
+ALTER TABLE contracts ADD CONSTRAINT contracts_ref_validthruversion FOREIGN KEY (refvalidthruversion) REFERENCES versions (id) ON DELETE SET NULL;
 ALTER TABLE partners ADD CONSTRAINT partners_ref_refhistory FOREIGN KEY (refhistory) REFERENCES histories (id) ON DELETE CASCADE;
-ALTER TABLE partners ADD CONSTRAINT partners_ref_validfromversion FOREIGN KEY (validfromversion) REFERENCES versions (id) ON DELETE NO ACTION;
-ALTER TABLE partners ADD CONSTRAINT partners_ref_validthruversion FOREIGN KEY (validthruversion) REFERENCES versions (id) ON DELETE SET NULL;
+ALTER TABLE partners ADD CONSTRAINT partners_ref_validfromversion FOREIGN KEY (refvalidfromversion) REFERENCES versions (id) ON DELETE NO ACTION;
+ALTER TABLE partners ADD CONSTRAINT partners_ref_validthruversion FOREIGN KEY (refvalidthruversion) REFERENCES versions (id) ON DELETE SET NULL;
 ALTER TABLE userroles ADD CONSTRAINT userroles_ref_refrole FOREIGN KEY (refrole) REFERENCES roles (id) ON DELETE CASCADE;
 ALTER TABLE userroles ADD CONSTRAINT userroles_ref_refuser FOREIGN KEY (refuser) REFERENCES users (id) ON DELETE CASCADE;
 ALTER TABLE versions ADD CONSTRAINT versions_ref_refhistory FOREIGN KEY (refhistory) REFERENCES histories (id) ON DELETE CASCADE;
+ALTER TABLE versions ADD CONSTRAINT versions_ref_refshadowedby FOREIGN KEY (refshadowedby) REFERENCES versions (id) ON DELETE NO ACTION;
 ALTER TABLE workflows ADD CONSTRAINT workflows_ref_refuser FOREIGN KEY (refuser) REFERENCES users (id) ON DELETE NO ACTION;
