@@ -9,9 +9,7 @@ instance AutoRoute ContractsController where
     autoRoute = autoRouteWithIdType (parseIntegerId @(Id Contract))
 
 instance AutoRoute PartnersController where
-    autoRoute = autoRouteWithIdType (parseIntegerId @(Id Contract))
-
-instance AutoRoute PartnersController
+    autoRoute = autoRouteWithIdType (parseIntegerId @(Id Partner))
 
 instance AutoRoute WorkflowsController
 

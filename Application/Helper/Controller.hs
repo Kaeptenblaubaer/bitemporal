@@ -22,7 +22,7 @@ today :: IO (Day) -- :: (year,month,day)
 today = getCurrentTime >>= return . utctDay
 
 
-class (KnownSymbol (GetTableName rec), rec ~ GetModelByTableName (GetTableName rec), Record rec, CanCreate rec,Fetchable (QueryBuilder (GetTableName rec))  rec, FromRow rec,
+class (KnownSymbol (GetTableName rec), rec ~ GetModelByTableName (GetTableName rec), PrimaryKey (GetTableName rec) ~ Integer, Record rec, CanCreate rec,Fetchable (QueryBuilder (GetTableName rec))  rec, FromRow rec,
     HasField "id" rec (Id rec), Show (PrimaryKey (GetTableName rec)), HasField "refHistory" rec (Id History),SetField "refHistory" rec (Id History),
     HasField "refValidfromversion" rec (Id Version), SetField "refValidfromversion" rec (Id Version),
     HasField "refValidthruversion" rec (Maybe(Id Version)), SetField "refValidthruversion" rec (Maybe (Id Version)),
@@ -56,7 +56,7 @@ class (KnownSymbol (GetTableName rec), rec ~ GetModelByTableName (GetTableName r
         let versionId :: Integer = bubu $ get #id version
                                     where bubu (Id intid) = intid
         state ::rec <- state |> set #refHistory (get #id history) |> set #refValidfromversion (get #id version) |> createRecord
-        uptodate ::Workflow <- workflow |> set #progress ( toJSON $ WorkflowProgress (Just(StateKeys (Just historyUUID) (Just versionId) (Just (getKey state)) )) Nothing) |> updateRecord
+        uptodate ::Workflow <- workflow |> set #progress ( toJSON $ WorkflowProgress  (Just $ StateKeys (Just historyUUID)  (Just versionId)  (Just (getKey state)) Nothing )  Nothing ) |> updateRecord
         putStrLn ("hier ist Workflow mit JSON " ++ (show (get #progress uptodate)))
         pure state
  

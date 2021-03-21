@@ -23,7 +23,7 @@ instance Controller WorkflowsController where
         let historyIdMB = paramOrNothing @UUID "historyId"
         case historyIdMB of 
             Just historyId ->  do
-                let initialWfpV :: Value = fromJust $ decode $ encode $ WorkflowProgress ( Just(StateKeys (Just historyId) Nothing Nothing )) Nothing
+                let initialWfpV :: Value = fromJust $ decode $ encode $ WorkflowProgress (Just $ StateKeys (Just historyId) Nothing Nothing Nothing) Nothing
                 let workflow = newRecord |> set #refUser (get #id user) |> set #validfrom today |>
                      set #workflowType WftypeUpdate |> set #historyType HistorytypeContract |> set #progress initialWfpV 
                 setModal NewView { .. }
@@ -126,12 +126,12 @@ instance Controller WorkflowsController where
                                                 newVersion :: Version <- fetch (Id v) 
                                                 newVersion |>set #committed True |> updateRecord 
                                                 w <- workflow |> set #workflowStatus "committed" |> updateRecord
-                                                sOld :: [Contract] <- query @ Contract |> filterWhere (#refhistory,(Id h)) |> 
-                                                    filterWhereSql(#refvalidfromversion,"<> " ++ encodeUtf8( show v)) |>
-                                                    filterWhere(#refvalidthruversion,Nothing) |> fetch
+                                                sOld :: [Contract] <- query @ Contract |> filterWhere (#refHistory,(Id h)) |> 
+                                                    filterWhereSql(#refValidfromversion,"<> " ++ encodeUtf8( show v)) |>
+                                                    filterWhere(#refValidthruversion,Nothing) |> fetch
                                                 case head sOld of
                                                     Just sOld -> do
-                                                            sUpd :: Contract <- sOld |> set #refvalidthruversion (Just (Id v)) |> updateRecord
+                                                            sUpd :: Contract <- sOld |> set #refValidthruversion (Just (Id v)) |> updateRecord
                                                             putStrLn "predecessor terminated"
                                                     Nothing -> putStrLn "no predecessor"
                                                 case getShadowed wfp of
