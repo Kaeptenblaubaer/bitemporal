@@ -17,7 +17,7 @@ instance View EditView where
 
 renderForm :: Workflow -> Html
 renderForm workflow = formFor workflow [hsx|
-    {(textField #refuser)}
+    {(textField #refUser)}
     {(textField #historyType)}
     {(textField #workflowType)}
     {(textField #progress)}

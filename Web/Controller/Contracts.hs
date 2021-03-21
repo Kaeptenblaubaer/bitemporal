@@ -71,4 +71,4 @@ instance Controller ContractsController where
         redirectTo ContractsAction
 
 buildContract contract = contract
-    |> fill @'[ "refhistory" ,"validfromversion" ,"validthruversion", "content"]
+    |> fill @'[ "refHistory" ,"refValidfromversion" ,"refValidthruversion", "content"]

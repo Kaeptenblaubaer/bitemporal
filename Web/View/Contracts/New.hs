@@ -18,9 +18,9 @@ instance View NewView where
 
 renderForm :: Contract ->Html
 renderForm contract = formFor contract [hsx|
-    {(textField #validfromversion)}
-    {(textField #validthruversion)}
-    {(textField #refhistory)}
+    {(textField #refValidfromversion)}
+    {(textField #refValidthruversion)}
+    {(textField #refHistory)}
     {(textField #content ) }
     {submitButton}
 |] 

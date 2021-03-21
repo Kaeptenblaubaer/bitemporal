@@ -12,14 +12,14 @@ CREATE TABLE roles (
 );
 CREATE TABLE userroles (
     id UUID DEFAULT uuid_generate_v4() PRIMARY KEY NOT NULL,
-    refuser UUID NOT NULL,
-    refrole UUID NOT NULL
+    ref_user UUID NOT NULL,
+    ref_role UUID NOT NULL
 );
 CREATE TYPE history_type AS ENUM ('historytype_tariff', 'historytype_contract', 'historytype_partner');
 CREATE TYPE workflow_type AS ENUM ('wftype_new', 'wftype_update');
 CREATE TABLE workflows (
     id UUID DEFAULT uuid_generate_v4() PRIMARY KEY NOT NULL,
-    refuser UUID DEFAULT uuid_generate_v4() NOT NULL,
+    ref_user UUID DEFAULT uuid_generate_v4() NOT NULL,
     history_type history_TYPE NOT NULL,
     workflow_type workflow_type NOT NULL,
     progress JSONB NOT NULL,
@@ -31,43 +31,45 @@ CREATE TABLE workflows (
 CREATE TABLE histories (
     id UUID DEFAULT uuid_generate_v4() PRIMARY KEY NOT NULL,
     latestversion INT DEFAULT 0 NOT NULL,
-    history_type history_type NOT NULL
+    history_type history_type NOT NULL,
+    ref_owned_by_workflow UUID DEFAULT uuid_generate_v4()
 );
 CREATE TABLE versions (
     id BIGSERIAL PRIMARY KEY NOT NULL,
-    refhistory UUID NOT NULL,
+    ref_history UUID NOT NULL,
     validfrom DATE DEFAULT NOW() NOT NULL,
     createdat TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
     "committed" BOOLEAN DEFAULT false NOT NULL
 );
 CREATE TABLE contracts (
     id BIGSERIAL PRIMARY KEY NOT NULL,
-    validfromversion INT NOT NULL,
-    validthruversion INT DEFAULT NULL,
-    refhistory UUID DEFAULT uuid_generate_v4() NOT NULL,
+    ref_validfromversion INT NOT NULL,
+    ref_validthruversion INT DEFAULT NULL,
+    ref_history UUID DEFAULT uuid_generate_v4() NOT NULL,
     content TEXT NOT NULL
 );
 CREATE TABLE partners (
     id BIGSERIAL PRIMARY KEY NOT NULL,
-    validfromversion INT NOT NULL,
-    validthruversion INT DEFAULT NULL,
-    refhistory UUID DEFAULT uuid_generate_v4() NOT NULL,
+    ref_validfromversion INT NOT NULL,
+    ref_validthruversion INT DEFAULT NULL,
+    ref_history UUID DEFAULT uuid_generate_v4() NOT NULL,
     content TEXT NOT NULL
 );
 CREATE TABLE tariffs (
     id BIGSERIAL PRIMARY KEY NOT NULL,
-    validfromversion INT NOT NULL,
-    validthruversion INT DEFAULT NULL,
-    refhistory UUID DEFAULT uuid_generate_v4() NOT NULL,
+    ref_validfromversion INT NOT NULL,
+    ref_validthruversion INT DEFAULT NULL,
+    ref_history UUID DEFAULT uuid_generate_v4() NOT NULL,
     content TEXT NOT NULL
 );
-ALTER TABLE contracts ADD CONSTRAINT contracts_ref_refhistory FOREIGN KEY (refhistory) REFERENCES histories (id) ON DELETE CASCADE;
-ALTER TABLE contracts ADD CONSTRAINT contracts_ref_validfromversion FOREIGN KEY (validfromversion) REFERENCES versions (id) ON DELETE NO ACTION;
-ALTER TABLE contracts ADD CONSTRAINT contracts_ref_validthruversion FOREIGN KEY (validthruversion) REFERENCES versions (id) ON DELETE SET NULL;
-ALTER TABLE partners ADD CONSTRAINT partners_ref_refhistory FOREIGN KEY (refhistory) REFERENCES histories (id) ON DELETE CASCADE;
-ALTER TABLE partners ADD CONSTRAINT partners_ref_validfromversion FOREIGN KEY (validfromversion) REFERENCES versions (id) ON DELETE NO ACTION;
-ALTER TABLE partners ADD CONSTRAINT partners_ref_validthruversion FOREIGN KEY (validthruversion) REFERENCES versions (id) ON DELETE SET NULL;
-ALTER TABLE userroles ADD CONSTRAINT userroles_ref_refrole FOREIGN KEY (refrole) REFERENCES roles (id) ON DELETE CASCADE;
-ALTER TABLE userroles ADD CONSTRAINT userroles_ref_refuser FOREIGN KEY (refuser) REFERENCES users (id) ON DELETE CASCADE;
-ALTER TABLE versions ADD CONSTRAINT versions_ref_refhistory FOREIGN KEY (refhistory) REFERENCES histories (id) ON DELETE CASCADE;
-ALTER TABLE workflows ADD CONSTRAINT workflows_ref_refuser FOREIGN KEY (refuser) REFERENCES users (id) ON DELETE NO ACTION;
+ALTER TABLE contracts ADD CONSTRAINT contracts_ref_Validfromversion FOREIGN KEY (ref_validfromversion) REFERENCES versions (id) ON DELETE NO ACTION;
+ALTER TABLE contracts ADD CONSTRAINT contracts_ref_history FOREIGN KEY (ref_history) REFERENCES histories (id) ON DELETE CASCADE;
+ALTER TABLE contracts ADD CONSTRAINT contracts_ref_Validthruversion FOREIGN KEY (ref_validthruversion) REFERENCES versions (id) ON DELETE SET NULL;
+ALTER TABLE histories ADD CONSTRAINT histories_ref_OwnedByWorkflow FOREIGN KEY (ref_owned_by_workflow) REFERENCES users (id) ON DELETE NO ACTION;
+ALTER TABLE partners ADD CONSTRAINT partners_ref_Validfromversion FOREIGN KEY (ref_validfromversion) REFERENCES versions (id) ON DELETE NO ACTION;
+ALTER TABLE partners ADD CONSTRAINT partners_ref_history FOREIGN KEY (ref_history) REFERENCES histories (id) ON DELETE CASCADE;
+ALTER TABLE partners ADD CONSTRAINT partners_ref_validthruversion FOREIGN KEY (ref_validthruversion) REFERENCES versions (id) ON DELETE SET NULL;
+ALTER TABLE userroles ADD CONSTRAINT userroles_ref_refrole FOREIGN KEY (ref_role) REFERENCES roles (id) ON DELETE CASCADE;
+ALTER TABLE userroles ADD CONSTRAINT userroles_ref_refuser FOREIGN KEY (ref_user) REFERENCES users (id) ON DELETE CASCADE;
+ALTER TABLE versions ADD CONSTRAINT versions_ref_refhistory FOREIGN KEY (ref_history) REFERENCES histories (id) ON DELETE CASCADE;
+ALTER TABLE workflows ADD CONSTRAINT workflows_ref_refuser FOREIGN KEY (ref_user) REFERENCES users (id) ON DELETE NO ACTION;

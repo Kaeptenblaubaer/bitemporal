@@ -52,4 +52,4 @@ instance Controller PartnersController where
         redirectTo PartnersAction
 
 buildPartner partner = partner
-    |> fill @["validfromversion","validthruversion","refhistory","content"]
+    |> fill @["refValidfromversion","refValidthruversion","refHistory","content"]

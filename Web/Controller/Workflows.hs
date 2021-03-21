@@ -24,11 +24,11 @@ instance Controller WorkflowsController where
         case historyIdMB of 
             Just historyId ->  do
                 let initialWfpV :: Value = fromJust $ decode $ encode $ WorkflowProgress ( Just(StateKeys (Just historyId) Nothing Nothing )) Nothing
-                let workflow = newRecord |> set #refuser (get #id user) |> set #validfrom today |>
+                let workflow = newRecord |> set #refUser (get #id user) |> set #validfrom today |>
                      set #workflowType WftypeUpdate |> set #historyType HistorytypeContract |> set #progress initialWfpV 
                 setModal NewView { .. }
             Nothing -> do
-                let workflow = newRecord |> set #refuser (get #id user) |> set #validfrom today |>
+                let workflow = newRecord |> set #refUser (get #id user) |> set #validfrom today |>
                         set #workflowType WftypeNew 
                 setModal NewView { .. }
         jumpToAction WorkflowsAction
@@ -157,5 +157,5 @@ instance Controller WorkflowsController where
         redirectTo $ ShowWorkflowAction workflowId
 
 buildWorkflow workflow = workflow
-    |> fill @["refuser","historyType","workflowType","validfrom"] |> set #progress val
+    |> fill @["refUser","historyType","workflowType","validfrom"] |> set #progress val
         where val =fromJust $ decode $ fromStrict $ param @Web.Controller.Prelude.ByteString "progress"

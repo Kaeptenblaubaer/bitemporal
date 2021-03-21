@@ -17,7 +17,7 @@ instance View EditView where
 
 renderForm :: Userrole -> Html
 renderForm userrole = formFor userrole [hsx|
-    {(textField #refuser)}
-    {(textField #refrole)}
+    {(textField #refUser)}
+    {(textField #refRole)}
     {submitButton}
 |]

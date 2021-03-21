@@ -18,7 +18,7 @@ instance View NewView where
 
 renderFormNew :: Workflow -> Html
 renderFormNew workflow = formFor workflow [hsx|
-    {(textField #refuser)}
+    {(textField #refUser)}
     {textField #progress}
     {dateField #validfrom}
     {selectField #historyType [HistorytypeContract,HistorytypePartner,HistorytypeTariff]}
@@ -27,7 +27,7 @@ renderFormNew workflow = formFor workflow [hsx|
 
 renderFormUpd :: Workflow -> Html
 renderFormUpd workflow = formFor workflow [hsx|
-    {(textField #refuser)}
+    {(textField #refUser)}
     {textField #progress}
     {dateField #validfrom}
     {textField #historyType}

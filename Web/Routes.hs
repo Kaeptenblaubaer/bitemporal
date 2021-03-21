@@ -1,13 +1,14 @@
 module Web.Routes where
 import IHP.RouterPrelude
 import Web.Types
-
+import Generated.Types (Contract, Partner,Tariff)
 -- Generator Marker
 instance AutoRoute StaticController
 instance AutoRoute ContractsController where
-    parseArgument = parseIntArgument
+    autoRoute = autoRouteWithIdType (parseIntegerId @(Id Contract))
 
-instance AutoRoute PartnersController
+instance AutoRoute PartnersController where
+    autoRoute = autoRouteWithIdType (parseIntegerId @(Id Contract))
 
 
 instance AutoRoute WorkflowsController
