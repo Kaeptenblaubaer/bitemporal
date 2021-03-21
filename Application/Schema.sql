@@ -39,7 +39,8 @@ CREATE TABLE versions (
     ref_history UUID NOT NULL,
     validfrom DATE DEFAULT NOW() NOT NULL,
     createdat TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
-    "committed" BOOLEAN DEFAULT false NOT NULL
+    "committed" BOOLEAN DEFAULT false NOT NULL,
+    refshadowedby INT DEFAULT NULL
 );
 CREATE TABLE contracts (
     id BIGSERIAL PRIMARY KEY NOT NULL,

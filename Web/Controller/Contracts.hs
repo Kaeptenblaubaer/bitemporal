@@ -39,7 +39,7 @@ instance Controller ContractsController where
 
     action UpdateContractAction { contractId } = do 
         workflowId <- getCurrentWorkflowId
-        workflow <- fetch workflowId
+        workflow <- fetch workflowId 
         contract <- fetch contractId
         contract
             |> buildContract

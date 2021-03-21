@@ -26,6 +26,7 @@ class (KnownSymbol (GetTableName rec), rec ~ GetModelByTableName (GetTableName r
     HasField "id" rec (Id rec), Show (PrimaryKey (GetTableName rec)), HasField "refHistory" rec (Id History),SetField "refHistory" rec (Id History),
     HasField "refValidfromversion" rec (Id Version), SetField "refValidfromversion" rec (Id Version),
     HasField "refValidthruversion" rec (Maybe(Id Version)), SetField "refValidthruversion" rec (Maybe (Id Version)),
+
     HasField "content" rec Text, SetField "content" rec Text) => CanVersion rec 
     where
 
@@ -72,8 +73,9 @@ class (KnownSymbol (GetTableName rec), rec ~ GetModelByTableName (GetTableName r
                 version :: Version <- newRecord |> set #refHistory historyId |> set #validfrom (get #validfrom workflow) |> createRecord
                 newState :: rec <- newRecord |> set #refHistory historyId |> set #refValidfromversion (get #id version) |>
                     set #content (get #content state) |> createRecord
-                workflow <- setWfp workflow (setContractVersionId wfprogress $ fromId $ get #id version ) |> updateRecord
+                workflow <- setWfp workflow ( upd (fromId $ get #id version ) (fromId $ get #id newState ) wfprogress) |> updateRecord                  
                 pure newState
+                    where upd vid sid workflow = ((setContractId sid).(setContractVersionId vid)) workflow
 
 instance CanVersion Contract
 
@@ -91,8 +93,11 @@ queryVersionMutableValidfrom workflow = do
         let q2 :: Query = "SELECT * FROM versions v WHERE refHistory = ? and v.id > ? and validfrom > ?"
         let p2 :: (Id History, Id Version,Text) = (Id historyId, versionId, validfrom)
         shadowed :: [Version]  <- sqlQuery  q2 p2
+        let shadowedIds :: [Integer] = map (getKey .(get #id)) shadowed  
         putStrLn ( "queryVersionMutableValidfrom shadowed=" ++ (show shadowed ))
+        workflow :: Workflow <- setWfp workflow (setShadowed wfprogress (getKey versionId, shadowedIds)) |> updateRecord
         pure $ (fromJust $ head vs, shadowed)
+            where getKey (Id key) = key
 
 getCurrentWorkflow :: (?context::ControllerContext, ?modelContext::ModelContext) => IO Workflow
 getCurrentWorkflow  = do
