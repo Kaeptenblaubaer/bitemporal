@@ -5,11 +5,14 @@ import Web.View.Workflows.Index
 import Web.View.Workflows.New
 import Web.View.Workflows.Edit
 import Web.View.Workflows.Show
+import Web.Controller.Histories
 import Application.Helper.Controller (createHistory, getKey, queryMutableState, today )
 import Application.Helper.WorkflowProgress
 import Data.Maybe ( fromJust )
 import Data.ByteString.Lazy as BSL (ByteString,fromStrict)
 import Data.Text.Encoding(encodeUtf8)
+import IHP.Log as Log
+
 instance Controller WorkflowsController where
     action WorkflowsAction = do
         let validfrom = paramOrNothing @Day "validfrom"
@@ -23,11 +26,27 @@ instance Controller WorkflowsController where
         let historyIdMB = paramOrNothing @UUID "historyId"
         case historyIdMB of 
             Just historyId ->  do
-                let initialWfpV :: Value = fromJust $ decode $ encode $ WorkflowProgress (Just $ StateKeys (Just historyId) Nothing Nothing Nothing) Nothing
-                let workflow = newRecord |> set #refUser (get #id user) |> set #validfrom today |>
-                     set #workflowType WftypeUpdate |> set #historyType HistorytypeContract |> set #progress initialWfpV 
-                setModal NewView { .. }
+                Log.info $ "New Mutation Workflow for History:" ++ show historyId
+                mylockedHistory :: [History] <- sqlQuery "SELECT * FROM histories WHERE id = ? AND ref_owned_by_workflow is null FOR UPDATE SKIP LOCKED" (Only historyId)
+                case head mylockedHistory of 
+                    Nothing -> do
+                        Log.info $ "History cannot be locked: " ++ show historyId
+                        theirlockedHistory :: [History] <- sqlQuery "SELECT * FROM histories WHERE id = ? FOR UPDATE SKIP LOCKED" (Only historyId)
+                        case head theirlockedHistory of
+                            Nothing -> do
+                                setErrorMessage $ "History is being locked by s.o. else: " ++ show historyId
+                                redirectTo $ ShowHistoryAction (Id historyId)
+                            Just h -> do 
+                                setErrorMessage $ "History " ++ show historyId ++  " has been locked by Workflow " ++ show (get #refOwnedByWorkflow h)
+                                redirectTo $ ShowWorkflowAction $ fromJust (get #refOwnedByWorkflow h)
+                        
+                    Just h -> do
+                        Log.info $ "History will be locked: " ++ show historyId
+                        let initialWfpV :: Value = fromJust $ decode $ encode $ WorkflowProgress (Just $ StateKeys (Just historyId) Nothing Nothing Nothing) Nothing
+                        let workflow = newRecord |> set #refUser (get #id user) |> set #validfrom today |> set #workflowType WftypeUpdate |> set #historyType HistorytypeContract |> set #progress initialWfpV 
+                        setModal NewView { .. }
             Nothing -> do
+                Log.info $ "New Creation Workflow"
                 let workflow = newRecord |> set #refUser (get #id user) |> set #validfrom today |>
                         set #workflowType WftypeNew 
                 setModal NewView { .. }
@@ -121,7 +140,9 @@ instance Controller WorkflowsController where
                                 case version c of
                                     Just v -> do
                                         case state c of
-                                            Just s -> do
+                                            Just s -> withTransaction do
+                                                hUnlocked :: History <- fetch (Id h)
+                                                hUnlocked |> set #refOwnedByWorkflow Nothing |> updateRecord 
                                                 setSuccessMessage $ "version=" ++ show v
                                                 newVersion :: Version <- fetch (Id v) 
                                                 newVersion |>set #committed True |> updateRecord 

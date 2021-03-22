@@ -76,7 +76,6 @@ ALTER TABLE public.userroles ENABLE TRIGGER ALL;
 ALTER TABLE public.workflows DISABLE TRIGGER ALL;
 
 
-
 ALTER TABLE public.workflows ENABLE TRIGGER ALL;
 
 

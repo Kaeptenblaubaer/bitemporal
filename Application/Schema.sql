@@ -64,9 +64,9 @@ CREATE TABLE tariffs (
     content TEXT NOT NULL
 );
 ALTER TABLE contracts ADD CONSTRAINT contracts_ref_Validfromversion FOREIGN KEY (ref_validfromversion) REFERENCES versions (id) ON DELETE NO ACTION;
-ALTER TABLE contracts ADD CONSTRAINT contracts_ref_history FOREIGN KEY (ref_history) REFERENCES histories (id) ON DELETE CASCADE;
 ALTER TABLE contracts ADD CONSTRAINT contracts_ref_Validthruversion FOREIGN KEY (ref_validthruversion) REFERENCES versions (id) ON DELETE SET NULL;
-ALTER TABLE histories ADD CONSTRAINT histories_ref_OwnedByWorkflow FOREIGN KEY (ref_owned_by_workflow) REFERENCES users (id) ON DELETE NO ACTION;
+ALTER TABLE contracts ADD CONSTRAINT contracts_ref_history FOREIGN KEY (ref_history) REFERENCES histories (id) ON DELETE CASCADE;
+ALTER TABLE histories ADD CONSTRAINT histories_ref_OwnedByWorkflow FOREIGN KEY (ref_owned_by_workflow) REFERENCES workflows (id) ON DELETE NO ACTION;
 ALTER TABLE partners ADD CONSTRAINT partners_ref_Validfromversion FOREIGN KEY (ref_validfromversion) REFERENCES versions (id) ON DELETE NO ACTION;
 ALTER TABLE partners ADD CONSTRAINT partners_ref_history FOREIGN KEY (ref_history) REFERENCES histories (id) ON DELETE CASCADE;
 ALTER TABLE partners ADD CONSTRAINT partners_ref_validthruversion FOREIGN KEY (ref_validthruversion) REFERENCES versions (id) ON DELETE SET NULL;

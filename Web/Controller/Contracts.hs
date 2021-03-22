@@ -7,6 +7,8 @@ import Web.View.Contracts.Edit
 import Web.View.Contracts.Show
 import Application.Helper.Controller;
 import Data.Maybe
+import qualified IHP.Log as Log
+import IHP.Log.Types
 
 today :: IO (Day) -- :: (year,month,day)
 today = getCurrentTime >>= return . utctDay
@@ -52,6 +54,7 @@ instance Controller ContractsController where
                     redirectTo EditContractAction {..}
 
     action CreateContractAction = do
+        Log.info  "Enter createHistory workflow=" 
         workflowId <- getCurrentWorkflowId
         workflow :: Workflow <- fetch workflowId
         let contract = newRecord @Contract
@@ -60,7 +63,7 @@ instance Controller ContractsController where
             |> ifValid \case
                 Left contract -> render NewView { workflowId, .. } 
                 Right contract -> do
-                    contract :: Contract <- createHistory workflow contract
+                    contract :: Contract <- createHistory workflow contract 
                     setSuccessMessage "Contract created"
                     redirectTo ContractsAction
 

@@ -17,6 +17,8 @@ import Data.Text.Encoding ( encodeUtf8 )
 import Data.Text.Read as T (decimal)
 import Data.Maybe ( fromJust )
 import GHC.Generics
+import qualified IHP.Log as Log
+import IHP.Log.Types
 
 today :: IO (Day) -- :: (year,month,day)
 today = getCurrentTime >>= return . utctDay
@@ -35,10 +37,12 @@ class (KnownSymbol (GetTableName rec), rec ~ GetModelByTableName (GetTableName r
     getKey m = case decimal $ recordToInputValue m of
                                     Left _ -> -1
                                     Right ( i , _) -> i
-    queryMutableState :: (?modelContext::ModelContext)=> Workflow -> IO (rec,[Version])
+    queryMutableState :: (?modelContext::ModelContext, ?context::context, LoggingProvider context )=> Workflow -> IO (rec,[Version])
     queryMutableState workflow =  do
+        
         mutable :: (Version,[Version]) <- queryVersionMutableValidfrom workflow 
         let h = get #refHistory $ fst mutable
+        Log.info $ "querymutable " ++ show h
         let v = get #id $ fst mutable
         mstate <- query @rec |> filterWhere(#refHistory, h) |> filterWhereSql (#refValidfromversion, encodeUtf8("<= " ++ (show v))) |>
                             queryOr 
@@ -47,9 +51,10 @@ class (KnownSymbol (GetTableName rec), rec ~ GetModelByTableName (GetTableName r
         
         pure (mstate,snd mutable)
 
-    createHistory :: (?modelContext::ModelContext) => Workflow -> rec -> IO rec
+    createHistory :: (?modelContext::ModelContext, ?context::context, LoggingProvider context ) => Workflow -> rec -> IO rec
     createHistory workflow state = do
-        history ::History <- newRecord |> set #historyType (get #historyType workflow) |> createRecord
+        Log.info $ "createHistory for workflow: " ++ (show (get #id workflow))
+        history ::History <- newRecord |> set #historyType (get #historyType workflow) |> set #refOwnedByWorkflow (Just $ get #id workflow)|> createRecord
         let historyUUID ::UUID = bubu $ get #id history
                                     where bubu (Id uuid) = uuid
         version :: Version <- newRecord |> set #refHistory (get #id history) |>  set #validfrom (get #validfrom workflow) |> createRecord
