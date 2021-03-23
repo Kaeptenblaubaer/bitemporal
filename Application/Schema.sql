@@ -40,7 +40,7 @@ CREATE TABLE versions (
     validfrom DATE DEFAULT NOW() NOT NULL,
     createdat TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
     "committed" BOOLEAN DEFAULT false NOT NULL,
-    refshadowedby INT DEFAULT NULL
+    ref_shadowedby INT DEFAULT NULL
 );
 CREATE TABLE contracts (
     id BIGSERIAL PRIMARY KEY NOT NULL,

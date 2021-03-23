@@ -90,12 +90,12 @@ queryVersionMutableValidfrom workflow = do
         let wfprogress :: WorkflowProgress = fromJust $ getWfp workflow
         let validfrom = tshow $ get #validfrom workflow
         let historyId =  getContracthistoryId wfprogress
-        let q :: Query = "SELECT * FROM versions v WHERE v.id in (SELECT max(id) FROM versions where refHistory = ? and validfrom <= ?)"
+        let q :: Query = "SELECT * FROM versions v WHERE v.id in (SELECT max(id) FROM versions where ref_history = ? and validfrom <= ?)"
         let p :: (Id History, Text) = (Id historyId, validfrom)
         vs :: [Version]  <- sqlQuery  q p
         let versionId = get #id $ fromJust $ head vs
         putStrLn ( "queryVersionMutableValidfrom versionid=" ++ (show versionId ))
-        let q2 :: Query = "SELECT * FROM versions v WHERE refHistory = ? and v.id > ? and validfrom > ?"
+        let q2 :: Query = "SELECT * FROM versions v WHERE ref_history = ? and v.id > ? and validfrom > ?"
         let p2 :: (Id History, Id Version,Text) = (Id historyId, versionId, validfrom)
         shadowed :: [Version]  <- sqlQuery  q2 p2
         let shadowedIds :: [Integer] = map (getKey .(get #id)) shadowed  

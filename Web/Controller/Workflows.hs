@@ -129,7 +129,7 @@ instance Controller WorkflowsController where
     action CommitWorkflowAction = do
         workflow <- getCurrentWorkflow
         let workflowId = get #id workflow
-        putStrLn ("ToCOmmitWF wf="++ (show workflowId))
+        Log.info $ "ToCOmmitWF wf="++ show workflowId
         let wfpMB = getWfp workflow
         case get #historyType workflow of
             HistorytypeContract -> do
@@ -141,25 +141,31 @@ instance Controller WorkflowsController where
                                     Just v -> do
                                         case state c of
                                             Just s -> withTransaction do
+                                                Log.info $ "committing h:" ++ show h
                                                 hUnlocked :: History <- fetch (Id h)
                                                 hUnlocked |> set #refOwnedByWorkflow Nothing |> updateRecord 
+                                                Log.info $ "Unlocked h:" ++ show h
                                                 setSuccessMessage $ "version=" ++ show v
                                                 newVersion :: Version <- fetch (Id v) 
                                                 newVersion |>set #committed True |> updateRecord 
+                                                Log.info $ "commit version v: " ++ show v
                                                 w <- workflow |> set #workflowStatus "committed" |> updateRecord
+                                                Log.info $ "commit workflow w: " ++ show w
                                                 sOld :: [Contract] <- query @ Contract |> filterWhere (#refHistory,(Id h)) |> 
                                                     filterWhereSql(#refValidfromversion,"<> " ++ encodeUtf8( show v)) |>
                                                     filterWhere(#refValidthruversion,Nothing) |> fetch
                                                 case head sOld of
                                                     Just sOld -> do
                                                             sUpd :: Contract <- sOld |> set #refValidthruversion (Just (Id v)) |> updateRecord
-                                                            putStrLn "predecessor terminated"
-                                                    Nothing -> putStrLn "no predecessor"
+                                                            Log.info $ "contract predecessor terminated" ++ show s
+                                                    Nothing -> Log.info "no contract predecessor"
                                                 case getShadowed wfp of
-                                                    Nothing -> putStrLn "none shadowed"
+                                                    Nothing -> Log.info "No version"
                                                     Just (shadow,shadowed) -> do
-                                                        updated :: [Version]<- sqlQuery "update version set refshadowed = ? where id in ?" (shadow, In shadowed)
-                                                        putStrLn "updated"
+                                                        updated :: [Version]<- sqlQuery "update versions v set ref_shadowedby = ? where id in ? returning * " (shadow, In shadowed)
+                                                        forEach updated (\v -> Log.info $ "updated" ++ (show v)) 
+                                                commitTransaction 
+                                                Log.info "commit successful"
                                                 redirectTo $ ShowWorkflowAction workflowId 
                                             Nothing -> do
                                                 setErrorMessage $ "cannot commit: state is null h=" ++ show h ++ "v=" ++ show v

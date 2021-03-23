@@ -22,9 +22,12 @@ INSERT INTO public.users (id, email, password_hash, locked_at, failed_login_atte
 ALTER TABLE public.users ENABLE TRIGGER ALL;
 
 
+ALTER TABLE public.workflows DISABLE TRIGGER ALL;
+
+ALTER TABLE public.workflows ENABLE TRIGGER ALL;
+
+
 ALTER TABLE public.histories DISABLE TRIGGER ALL;
-
-
 
 ALTER TABLE public.histories ENABLE TRIGGER ALL;
 
@@ -39,16 +42,13 @@ ALTER TABLE public.versions ENABLE TRIGGER ALL;
 ALTER TABLE public.contracts DISABLE TRIGGER ALL;
 
 
-
 ALTER TABLE public.contracts ENABLE TRIGGER ALL;
 
 
 ALTER TABLE public.partners DISABLE TRIGGER ALL;
 
 
-
 ALTER TABLE public.partners ENABLE TRIGGER ALL;
-
 
 ALTER TABLE public.roles DISABLE TRIGGER ALL;
 
@@ -73,13 +73,7 @@ INSERT INTO public.userroles (id, ref_user, ref_role) VALUES ('9f06c1a6-6099-405
 ALTER TABLE public.userroles ENABLE TRIGGER ALL;
 
 
-ALTER TABLE public.workflows DISABLE TRIGGER ALL;
-
-
-ALTER TABLE public.workflows ENABLE TRIGGER ALL;
-
-
-SELECT pg_catalog.setval('public.contracts_id_seq', 41, true);
+SELECT pg_catalog.setval('public.contracts_id_seq', 42, true);
 
 
 
@@ -91,7 +85,7 @@ SELECT pg_catalog.setval('public.tariffs_id_seq', 1, false);
 
 
 
-SELECT pg_catalog.setval('public.versions_id_seq', 42, true);
+SELECT pg_catalog.setval('public.versions_id_seq', 43, true);
 
 
 
