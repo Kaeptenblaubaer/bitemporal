@@ -1,6 +1,5 @@
 #!/usr/bin/env run-script
 module Application.Script.HowToLock where
-
 import Application.Script.Prelude
 
 run :: Script

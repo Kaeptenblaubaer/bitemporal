@@ -19,6 +19,7 @@ import Data.Maybe ( fromJust )
 import GHC.Generics
 import qualified IHP.Log as Log
 import IHP.Log.Types
+import Application.Helper.VersionTree
 
 today :: IO (Day) -- :: (year,month,day)
 today = getCurrentTime >>= return . utctDay

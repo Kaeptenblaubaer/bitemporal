@@ -73,4 +73,5 @@ ALTER TABLE partners ADD CONSTRAINT partners_ref_validthruversion FOREIGN KEY (r
 ALTER TABLE userroles ADD CONSTRAINT userroles_ref_refrole FOREIGN KEY (ref_role) REFERENCES roles (id) ON DELETE CASCADE;
 ALTER TABLE userroles ADD CONSTRAINT userroles_ref_refuser FOREIGN KEY (ref_user) REFERENCES users (id) ON DELETE CASCADE;
 ALTER TABLE versions ADD CONSTRAINT versions_ref_refhistory FOREIGN KEY (ref_history) REFERENCES histories (id) ON DELETE CASCADE;
+ALTER TABLE versions ADD CONSTRAINT versions_ref_shadowedby FOREIGN KEY (ref_shadowedby) REFERENCES versions (id) ON DELETE NO ACTION;
 ALTER TABLE workflows ADD CONSTRAINT workflows_ref_refuser FOREIGN KEY (ref_user) REFERENCES users (id) ON DELETE NO ACTION;
