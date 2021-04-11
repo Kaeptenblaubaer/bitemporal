@@ -162,7 +162,7 @@ instance Controller WorkflowsController where
                                                 case getShadowed wfp of
                                                     Nothing -> Log.info "No version"
                                                     Just (shadow,shadowed) -> do
-                                                        updated :: [Version]<- sqlQuery "update versions v set ref_shadowedby = ? where id in ? returning * " (shadow, In shadowed)
+                                                        updated :: [Version]<- sqlQuery "update versions v set ref_shadowedby = ? where id in ? returning * " (v, In shadowed)
                                                         forEach updated (\v -> Log.info $ "updated" ++ (show v)) 
                                                 commitTransaction 
                                                 Log.info "commit successful"

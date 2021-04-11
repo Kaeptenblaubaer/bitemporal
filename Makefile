@@ -17,7 +17,7 @@ JS_FILES += ${IHP}/static/helpers.js
 JS_FILES += ${IHP}/static/vendor/morphdom-umd.min.js
 JS_FILES += ${IHP}/static/vendor/turbolinks.js
 JS_FILES += ${IHP}/static/vendor/turbolinksInstantClick.js
-JS_FILES += static/app.js
+JS_FILES += app.js
 
 include ${IHP}/Makefile.dist
 

@@ -11,22 +11,7 @@ instance View ShowView where
                 <li class="breadcrumb-item active">Show History</li>
             </ol>
         </nav>
-        <script>
-          $(function () {
-            initTreeView();
-          });
-
-          function initTreeView() {
-          var toggler = document.getElementsByClassName("caret");
-          var i;
-            for (i = 0; i < toggler.length; i++) {
-              toggler[i].addEventListener("click", function() {
-                this.parentElement.querySelector(".nested").classList.toggle("active");
-                this.classList.toggle("caret-down");
-              });
-            }
-          }
-        </script>
+        <script src="app.js"/>
         <h1>Show History</h1>
         <h2 > Tree representation of bitemporal versioning histories</h2>
         <p>reference time is displayed vertically running down from old to new. Indentation represents
