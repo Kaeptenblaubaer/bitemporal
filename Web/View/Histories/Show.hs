@@ -11,14 +11,30 @@ instance View ShowView where
                 <li class="breadcrumb-item active">Show History</li>
             </ol>
         </nav>
+        <script>
+          $(function () {
+            initTreeView();
+          });
+
+          function initTreeView() {
+          var toggler = document.getElementsByClassName("caret");
+          var i;
+            for (i = 0; i < toggler.length; i++) {
+              toggler[i].addEventListener("click", function() {
+                this.parentElement.querySelector(".nested").classList.toggle("active");
+                this.classList.toggle("caret-down");
+              });
+            }
+          }
+        </script>
         <h1>Show History</h1>
         <h2 > Tree representation of bitemporal versioning histories</h2>
         <p>reference time is displayed vertically running down from old to new. Indentation represents
         invalidation of timelines by retrospective mutatations </p>
         <p>Click on the arrow(s) to open or close the tree branches, that is: show or hide invalidated timelines</p>
-        <ol id="history" >
+        <ul id="history" >
           { forEach (fst $ mkForest versions []) renderTree } 
-        </ol>
+        </ul>
     |]
 
 renderTree :: Tree Version -> Html
@@ -31,9 +47,9 @@ renderTree n  = case subForest n of
        _  ->  [hsx|  
                     <li>{renderLabel n} 
                         <span class="caret" ></span>
-                        <ol class="nested">
+                        <ul class="nested">
                           { forEach (subForest n) renderTree } 
-                        </ol>
+                        </ul>
                     </li>
                 |]
 
