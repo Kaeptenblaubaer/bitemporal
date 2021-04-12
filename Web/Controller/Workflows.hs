@@ -15,16 +15,28 @@ import IHP.Log as Log
 
 instance Controller WorkflowsController where
     action WorkflowsAction = do
-        let validfrom = paramOrNothing @Day "validfrom"
+        -- let validfrom = paramOrNothing @Day "validfrom"
         workflows <- query @Workflow |> fetch
         render IndexView { .. }
+
+-- Types of workflow
+--  Creation of a new Entity. No historyId given
+--  Mutation of an existing one, designated by given historyId
+--      on successful locking of the entity creation of the workflow succeeds
+--      locking fails, if the entity is already marked as locked by another workflow (#refOwnedByWorkflow)
+--      or if the data base row is locked by a concurrent process  
 
     action NewWorkflowAction = do  
         today <- today
         now <- getCurrentTime
         user <- query @User |> fetchOne 
         let historyIdMB = paramOrNothing @UUID "historyId"
-        case historyIdMB of 
+        case historyIdMB of
+            Nothing -> do
+                Log.info $ "New Creation Workflow"
+                let workflow = newRecord |> set #refUser (get #id user) |> set #validfrom today |>
+                        set #workflowType WftypeNew 
+                setModal NewView { .. } 
             Just historyId ->  do
                 Log.info $ "New Mutation Workflow for History:" ++ show historyId
                 mylockedHistory :: [History] <- sqlQuery "SELECT * FROM histories WHERE id = ? AND ref_owned_by_workflow is null FOR UPDATE SKIP LOCKED" (Only historyId)
@@ -43,13 +55,9 @@ instance Controller WorkflowsController where
                     Just h -> do
                         Log.info $ "History will be locked: " ++ show historyId
                         let initialWfpV :: Value = fromJust $ decode $ encode $ WorkflowProgress (Just $ StateKeys (Just historyId) Nothing Nothing Nothing) Nothing
-                        let workflow = newRecord |> set #refUser (get #id user) |> set #validfrom today |> set #workflowType WftypeUpdate |> set #historyType HistorytypeContract |> set #progress initialWfpV 
+                        let workflow = newRecord |> set #refUser (get #id user) |> set #validfrom today |> set #workflowType WftypeUpdate |>
+                                set #historyType HistorytypeContract |> set #progress initialWfpV 
                         setModal NewView { .. }
-            Nothing -> do
-                Log.info $ "New Creation Workflow"
-                let workflow = newRecord |> set #refUser (get #id user) |> set #validfrom today |>
-                        set #workflowType WftypeNew 
-                setModal NewView { .. }
         jumpToAction WorkflowsAction
 
     action ShowWorkflowAction { workflowId } = do

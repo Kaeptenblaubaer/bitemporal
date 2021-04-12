@@ -18,40 +18,49 @@ instance View ShowView where
         invalidation of timelines by retrospective mutatations </p>
         <p>Click on the arrow(s) to open or close the tree branches, that is: show or hide invalidated timelines</p>
         <ul id="history" >
-          { forEach (fst $ mkForest versions []) renderTree } 
+          { forEach (fst $ mkForest versions []) (renderTree 0)} 
         </ul>
     |]
 
-renderTree :: Tree Version -> Html
-renderTree n  = case subForest n of
+renderTree :: Integer -> Tree Version -> Html
+renderTree lvl n  = case subForest n of
        [] ->  [hsx| 
                     <li>
-                            {renderLabel n}
+                            {renderLabel lvl n}
                     </li>
                 |]
        _  ->  [hsx|  
-                    <li>{renderLabel n} 
+                    <li>{renderLabel lvl n} 
                         <span class="caret" ></span>
                         <ul class="nested">
-                          { forEach (subForest n) renderTree } 
+                          { forEach (subForest n) (renderTree (lvl+1))} 
                         </ul>
                     </li>
                 |]
 
 
-renderLabel :: Tree Version -> Html
-renderLabel n = render (rootLabel n)
-    where render version = [hsx| <div><table><tr>
-            <td>{get #id version}</td><td>{get #validfrom version}</td><td><a href={pathTo(NewWorkflowAction) <> "?historyId=" ++ (show (get #refHistory version))}>Start Mutation Workflow</a></td>
+renderLabel :: Integer -> Tree Version  -> Html
+renderLabel lvl n = case lvl of
+    0 -> renderMutableVersion ( rootLabel n)
+    _ -> renderImmutableVersion ( rootLabel n)
+
+renderMutableVersion ::Version -> Html
+renderMutableVersion version =  [hsx| <div><table>
+            <tr><th>id</th><th>valid from</th><th>show</th><th>command</th></tr>
+            <tr>
+            <td  style="width:1%">{get #id version}</td><td style="width:2%">{get #validfrom version}</td><td style="width:3%"><a href={ShowStateByVersionAction (get #id version)}>Show state</a></td><td style="width:18%"><a href={pathTo(NewWorkflowAction) <> "?historyId=" ++ (show (get #refHistory version))}>Start Mutation Workflow</a></td>
             </tr></table></div>
           |] 
 
--- <a href={pathTo(NewWorkflowAction) <> "?historyId=" ++ (show (get #id refHistory))}>Start Mutation Workflow</a>
+renderImmutableVersion ::Version -> Html
+renderImmutableVersion version =  [hsx| <div><table>
+            <tr><th>id</th><th>valid from</th><th>show</th></tr>
+            <tr>
+            <td  style="width:1%">{get #id version}</td><td style="width:2%">{get #validfrom version}</td><td style="width:3%"><a href={ShowStateByVersionAction (get #id version)}>Show state</a></td><td style="width:18%"/>
+            </tr></table></div>
+          |]  
 
 
-bubu history = do
-    let versionForest = mkForest (get #versions history) []
-    putStrLn $ ">>>>>>>>>>TREE\n " ++ show versionForest
 
 compId2refId :: Version -> Version -> Bool
 compId2refId v ref = (Just $ get #id v) == get #refShadowedby ref

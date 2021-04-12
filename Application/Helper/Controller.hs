@@ -52,6 +52,11 @@ class (KnownSymbol (GetTableName rec), rec ~ GetModelByTableName (GetTableName r
         
         pure (mstate,snd mutable)
 
+    queryImmutableState :: (?modelContext::ModelContext, ?context::context, LoggingProvider context )=> (Id Version) -> IO (Id rec)
+    queryImmutableState versionId =  do
+        mstate <- query @rec |> filterWhere (#refValidfromversion, versionId) |> fetchOne
+        pure $ get #id mstate
+
     createHistory :: (?modelContext::ModelContext, ?context::context, LoggingProvider context ) => Workflow -> rec -> IO rec
     createHistory workflow state = do
         Log.info $ "createHistory for workflow: " ++ (show (get #id workflow))
@@ -84,6 +89,8 @@ class (KnownSymbol (GetTableName rec), rec ~ GetModelByTableName (GetTableName r
                     where upd vid sid workflow = ((setContractId sid).(setContractVersionId vid)) workflow
 
 instance CanVersion Contract
+instance CanVersion Partner
+instance CanVersion Tariff
 
 queryVersionMutableValidfrom :: (?modelContext::ModelContext) => Workflow -> IO (Version,[Version])
 queryVersionMutableValidfrom workflow = do

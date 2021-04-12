@@ -82,3 +82,24 @@ data UserrolesController
     | UpdateUserroleAction { userroleId :: !(Id Userrole) }
     | DeleteUserroleAction { userroleId :: !(Id Userrole) }
     deriving (Eq, Show, Data)
+
+data VersionsController
+    = VersionsAction
+    | NewVersionAction
+    | ShowVersionAction { versionId :: !(Id Version) }
+    | CreateVersionAction
+    | EditVersionAction { versionId :: !(Id Version) }
+    | UpdateVersionAction { versionId :: !(Id Version) }
+    | DeleteVersionAction { versionId :: !(Id Version) }
+    | ShowStateByVersionAction { versionId :: !(Id Version) }
+    deriving (Eq, Show, Data)
+
+data TariffsController
+    = TariffsAction
+    | NewTariffAction
+    | ShowTariffAction { tariffId :: !(Id Tariff) }
+    | CreateTariffAction
+    | EditTariffAction { tariffId :: !(Id Tariff) }
+    | UpdateTariffAction { tariffId :: !(Id Tariff) }
+    | DeleteTariffAction { tariffId :: !(Id Tariff) }
+    deriving (Eq, Show, Data)

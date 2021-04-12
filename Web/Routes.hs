@@ -1,7 +1,7 @@
 module Web.Routes where
 import IHP.RouterPrelude
 import Web.Types
-import Generated.Types (Contract, Partner,Tariff)
+import Generated.Types (Version, Contract, Partner,Tariff)
 -- Generator Marker
 instance AutoRoute StaticController
 
@@ -20,4 +20,9 @@ instance AutoRoute UsersController
 instance AutoRoute RolesController
 
 instance AutoRoute UserrolesController
+
+instance AutoRoute VersionsController where
+    autoRoute = autoRouteWithIdType (parseIntegerId @(Id Version))
+
+instance AutoRoute TariffsController
 
