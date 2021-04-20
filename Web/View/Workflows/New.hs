@@ -17,7 +17,7 @@ instance View NewView where
                 }
 
 renderFormNew :: Workflow -> Html
-renderFormNew workflow = formFor workflow [hsx|
+renderFormNew workflow =  formFor workflow [hsx|
     {(textField #refUser)}
     {textField #progress}
     {dateField #validfrom}

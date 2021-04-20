@@ -2,14 +2,21 @@ module Web.View.Workflows.Show where
 import Web.View.Prelude
 import IHP.ControllerPrelude 
 import Data.Text(replace, stripPrefix)
+import Data.Maybe ( fromJust )
 
-data ShowView = ShowView { workflow :: Workflow }
+data ShowView = ShowView { workflow :: Workflow, contractHistoryId :: UUID, contractVersionIdMB :: Maybe Integer , contractIdMB :: Maybe Integer}
+
+contractHrefMB contractIdMB = case contractIdMB of
+  Nothing -> [hsx| <li class="breadcrumb-item"> No Contract here</li> |]
+  Just contractId -> [hsx| <li class="breadcrumb-item"><a href={ShowContractAction (Id $ fromJust contractIdMB)}>Contract</a></li> |]
 
 instance View ShowView where
     html ShowView { .. } = [hsx|
         <nav>
             <ol class="breadcrumb">
                 <li class="breadcrumb-item"><a href={WorkflowsAction}>Workflows</a></li>
+                <li class="breadcrumb-item"><a href={ShowHistoryAction (Id contractHistoryId)}>History</a></li>
+                { contractHrefMB contractIdMB}                 
                 <li class="breadcrumb-item active">Show Workflow</li>
             </ol>
         </nav>

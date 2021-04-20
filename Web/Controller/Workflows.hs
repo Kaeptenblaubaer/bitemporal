@@ -26,21 +26,21 @@ instance Controller WorkflowsController where
 --      locking fails, if the entity is already marked as locked by another workflow (#refOwnedByWorkflow)
 --      or if the data base row is locked by a concurrent process  
 
-    action NewWorkflowAction = do  
+    action NewWorkflowAction = do
         today <- today
         now <- getCurrentTime
         user <- query @User |> fetchOne 
         let historyIdMB = paramOrNothing @UUID "historyId"
         case historyIdMB of
             Nothing -> do
-                Log.info $ "New Creation Workflow"
+                Log.info "New Creation Workflow"
                 let workflow = newRecord |> set #refUser (get #id user) |> set #validfrom today |>
-                        set #workflowType WftypeNew 
-                setModal NewView { .. } 
+                        set #workflowType WftypeNew
+                setModal NewView { .. }
             Just historyId ->  do
                 Log.info $ "New Mutation Workflow for History:" ++ show historyId
                 mylockedHistory :: [History] <- sqlQuery "SELECT * FROM histories WHERE id = ? AND ref_owned_by_workflow is null FOR UPDATE SKIP LOCKED" (Only historyId)
-                case head mylockedHistory of 
+                case head mylockedHistory of
                     Nothing -> do
                         Log.info $ "History cannot be locked: " ++ show historyId
                         theirlockedHistory :: [History] <- sqlQuery "SELECT * FROM histories WHERE id = ? FOR UPDATE SKIP LOCKED" (Only historyId)
@@ -48,21 +48,26 @@ instance Controller WorkflowsController where
                             Nothing -> do
                                 setErrorMessage $ "History is being locked by s.o. else: " ++ show historyId
                                 redirectTo $ ShowHistoryAction (Id historyId)
-                            Just h -> do 
+                            Just h -> do
                                 setErrorMessage $ "History " ++ show historyId ++  " has been locked by Workflow " ++ show (get #refOwnedByWorkflow h)
                                 redirectTo $ ShowWorkflowAction $ fromJust (get #refOwnedByWorkflow h)
-                        
+
                     Just h -> do
                         Log.info $ "History will be locked: " ++ show historyId
-                        let initialWfpV :: Value = fromJust $ decode $ encode $ WorkflowProgress (Just $ StateKeys (Just historyId) Nothing Nothing Nothing) Nothing
-                        let workflow = newRecord |> set #refUser (get #id user) |> set #validfrom today |> set #workflowType WftypeUpdate |>
-                                set #historyType HistorytypeContract |> set #progress initialWfpV 
+                        let hType = get #historyType h
+                            initialProgress :: Value = initialWfpV hType historyId
+                            workflow = newRecord |> set #refUser (get #id user) |> set #validfrom today |> set #workflowType WftypeUpdate |>
+                                set #historyType hType |> set #progress initialProgress
                         setModal NewView { .. }
         jumpToAction WorkflowsAction
 
     action ShowWorkflowAction { workflowId } = do
         workflow <- fetch workflowId
         setSession "workflowId" (show workflowId)
+        let wfp = fromJust $ getWfp workflow
+            contractHistoryId = getContracthistoryId wfp  
+            contractVersionIdMB = getContractVersionIdMB wfp
+            contractIdMB = getContractIdMB wfp
         render ShowView { .. }
 
     action EditWorkflowAction { workflowId } = do
@@ -81,59 +86,61 @@ instance Controller WorkflowsController where
                     redirectTo EditWorkflowAction { .. }
 
     action CreateWorkflowAction = do
+        Log.info $ "creating Workflow"
         let workflow = newRecord @Workflow
         workflow
             |> buildWorkflow
-            |> ifValid \case 
-                Left workflow -> render NewView { .. } 
+            |> ifValid \case
+                Left workflow -> render NewView { .. }
                 Right workflow -> do
                     workflow <- workflow |> createRecord
                     setCurrentWorkflowId workflow
-                    putStrLn ("wfnew sessionset =" ++ (show workflow)) 
+                    Log.info $ "wfnew sessionset =" ++ show workflow
                     setSuccessMessage "Workflow created"
-                    redirectTo WorkflowsAction
+                    Log.info $ "redirectiong to NextWorkflowAction " ++ (show $ get #id workflow)
+                    redirectTo $ NextWorkflowAction $ get #id workflow
 
     action DeleteWorkflowAction { workflowId } = do
         workflow <- fetch workflowId
         deleteRecord workflow
         setSuccessMessage "Workflow deleted"
         redirectTo WorkflowsAction
-        
+
     action NextWorkflowAction { workflowId } = do
         workflow <- getCurrentWorkflow
-        putStrLn ("NextWF wf="++ (show workflow))
+        putStrLn ("NextWF wf="++ show workflow)
         let wfpMB = getWfp workflow
         case get #workflowType workflow of
-            WftypeNew -> case wfpMB of 
+            WftypeNew -> case wfpMB of
                 Just wfp -> case contract wfp of
-                    Just (StateKeys _ _ (Just rid) _) -> do
+                    Just (StateKeys _ _ (Just rid) _) ->
                         redirectTo $ EditContractAction (Id rid)
                     _ -> do
-                        setErrorMessage ("SHOULDN'T: history is null")
-                        redirectTo $ ShowWorkflowAction workflowId 
-                Nothing -> do
-                        redirectTo NewContractAction 
-            WftypeUpdate -> case wfpMB of 
+                        setErrorMessage "SHOULDN'T: history is null"
+                        redirectTo $ ShowWorkflowAction workflowId
+                Nothing ->
+                        redirectTo NewContractAction
+            WftypeUpdate -> case wfpMB of
                 Just wfp -> case contract wfp of
                     Just (StateKeys (Just hid) Nothing Nothing Nothing) -> do
                         mutable :: (Contract,[Version]) <- queryMutableState workflow
-                        let msg :: Text = case (snd mutable) of
+                        let msg :: Text = case snd mutable of
                                 [] -> "not retrospective"
-                                shadowed -> "the following versions will be shadowed: " ++ foldr  (++) ""  (map (\v -> show $ get #validfrom v) shadowed)
+                                shadowed -> "the following versions will be shadowed: " ++ foldr (((++)) . (\v -> show $ get #validfrom v)) "" shadowed
                         setSuccessMessage msg
                         redirectTo $ EditContractAction (get #id (fst mutable))
-                    Just (StateKeys _ _ (Just rid) _) -> do
+                    Just (StateKeys _ _ (Just rid) _) ->
                         redirectTo $ EditContractAction (Id rid)
-                    Nothing -> do
+                    Nothing ->
                         redirectTo NewContractAction
                     _ -> do
-                        setErrorMessage ("SHOULDN'T: history is null")
-                        redirectTo $ ShowWorkflowAction workflowId 
+                        setErrorMessage "SHOULDN'T: history is null"
+                        redirectTo $ ShowWorkflowAction workflowId
                 Nothing -> do
-                        setErrorMessage ("SHOULDN'T: wfp is null")
-                        redirectTo $ ShowWorkflowAction workflowId 
+                        setErrorMessage "SHOULDN'T: wfp is null"
+                        redirectTo $ ShowWorkflowAction workflowId
 
-       
+
     action CommitWorkflowAction = do
         workflow <- getCurrentWorkflow
         let workflowId = get #id workflow
@@ -141,7 +148,7 @@ instance Controller WorkflowsController where
         let wfpMB = getWfp workflow
         case get #historyType workflow of
             HistorytypeContract -> do
-                case wfpMB of 
+                case wfpMB of
                     Just wfp -> case contract wfp of
                         Just c  -> case history c of
                             Just h -> do
@@ -151,15 +158,15 @@ instance Controller WorkflowsController where
                                             Just s -> withTransaction do
                                                 Log.info $ "committing h:" ++ show h
                                                 hUnlocked :: History <- fetch (Id h)
-                                                hUnlocked |> set #refOwnedByWorkflow Nothing |> updateRecord 
+                                                hUnlocked |> set #refOwnedByWorkflow Nothing |> updateRecord
                                                 Log.info $ "Unlocked h:" ++ show h
                                                 setSuccessMessage $ "version=" ++ show v
-                                                newVersion :: Version <- fetch (Id v) 
-                                                newVersion |>set #committed True |> updateRecord 
+                                                newVersion :: Version <- fetch (Id v)
+                                                newVersion |>set #committed True |> updateRecord
                                                 Log.info $ "commit version v: " ++ show v
                                                 w <- workflow |> set #workflowStatus "committed" |> updateRecord
                                                 Log.info $ "commit workflow w: " ++ show w
-                                                sOld :: [Contract] <- query @ Contract |> filterWhere (#refHistory,(Id h)) |> 
+                                                sOld :: [Contract] <- query @ Contract |> filterWhere (#refHistory,Id h) |>
                                                     filterWhereSql(#refValidfromversion,"<> " ++ encodeUtf8( show v)) |>
                                                     filterWhere(#refValidthruversion,Nothing) |> fetch
                                                 case head sOld of
@@ -171,43 +178,43 @@ instance Controller WorkflowsController where
                                                     Nothing -> Log.info "No version"
                                                     Just (shadow,shadowed) -> do
                                                         updated :: [Version]<- sqlQuery "update versions v set ref_shadowedby = ? where id in ? returning * " (v, In shadowed)
-                                                        forEach updated (\v -> Log.info $ "updated" ++ (show v)) 
-                                                commitTransaction 
+                                                        forEach updated (\v -> Log.info $ "updated" ++ show v)
+                                                commitTransaction
                                                 Log.info "commit successful"
-                                                redirectTo $ ShowWorkflowAction workflowId 
+                                                redirectTo $ ShowWorkflowAction workflowId
                                             Nothing -> do
                                                 setErrorMessage $ "cannot commit: state is null h=" ++ show h ++ "v=" ++ show v
-                                                redirectTo $ ShowWorkflowAction workflowId 
+                                                redirectTo $ ShowWorkflowAction workflowId
                                     Nothing -> do
                                         setErrorMessage $ "cannot commit: version is null h=" ++ show h
-                                        redirectTo $ ShowWorkflowAction workflowId 
+                                        redirectTo $ ShowWorkflowAction workflowId
                             Nothing -> do
-                                    setErrorMessage ("cannot commit: history is null")
-                                    redirectTo $ ShowWorkflowAction workflowId 
+                                    setErrorMessage "cannot commit: history is null"
+                                    redirectTo $ ShowWorkflowAction workflowId
                         Nothing -> do
-                                    setErrorMessage ("cannot commit, SHOULDN'T: contract is null")
-                                    redirectTo $ ShowWorkflowAction workflowId 
+                                    setErrorMessage "cannot commit, SHOULDN'T: contract is null"
+                                    redirectTo $ ShowWorkflowAction workflowId
                     Nothing -> do
                             setErrorMessage "SHOULDN'T: empty progress data"
-                            redirectTo $ ShowWorkflowAction workflowId 
+                            redirectTo $ ShowWorkflowAction workflowId
             entitytype -> do
-                setErrorMessage ((show entitytype) ++ "not implemented")
-                redirectTo $ ShowWorkflowAction workflowId 
+                setErrorMessage (show entitytype ++ "not implemented")
+                redirectTo $ ShowWorkflowAction workflowId
 
     action RollbackWorkflowAction = do
         workflowId <- getCurrentWorkflowId
-        putStrLn ("ToRollbackWF wf="++ (show workflowId))
+        putStrLn ("ToRollbackWF wf="++ show workflowId)
         redirectTo $ ShowWorkflowAction workflowId
 
     action SuspendWorkflowAction = do
         workflowId <- getCurrentWorkflowId
-        putStrLn ("ToSuspendWF wf="++ (show workflowId))
+        putStrLn ("ToSuspendWF wf="++ show workflowId)
         redirectTo $ ShowWorkflowAction workflowId
 
     action ResumeWorkflowAction = do
         workflowId <- getCurrentWorkflowId
         setSession "workflowId" $ show workflowId
-        putStrLn ("ToResumeWF wf="++ (show workflowId))
+        putStrLn ("ToResumeWF wf="++ show workflowId)
         redirectTo $ ShowWorkflowAction workflowId
 
 buildWorkflow workflow = workflow

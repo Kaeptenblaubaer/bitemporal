@@ -65,7 +65,8 @@ instance Controller ContractsController where
                 Right contract -> do
                     contract :: Contract <- createHistory workflow contract 
                     setSuccessMessage "Contract created"
-                    redirectTo ContractsAction
+                    let contractId = get #id contract
+                    redirectTo EditContractAction {..}
 
     action DeleteContractAction { contractId } = do
         contract <- fetch contractId
