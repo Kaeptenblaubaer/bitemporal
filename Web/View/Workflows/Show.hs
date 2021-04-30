@@ -4,22 +4,30 @@ import IHP.ControllerPrelude
 import Data.Text(replace, stripPrefix)
 import Data.Maybe ( fromJust )
 
-data ShowView = ShowView { workflow :: Workflow, contractHistoryId :: UUID, contractVersionIdMB :: Maybe Integer , contractIdMB :: Maybe Integer}
+data ShowView = ShowView { workflow :: Workflow, stateHistoryIdMB :: Maybe UUID, stateVersionIdMB :: Maybe Integer , stateIdMB :: Maybe Integer}
 
-contractHrefMB contractIdMB = case contractIdMB of
-  Nothing -> [hsx| <li class="breadcrumb-item"> No Contract here</li> |]
-  Just contractId -> [hsx| <li class="breadcrumb-item"><a href={ShowContractAction (Id $ fromJust contractIdMB)}>Contract</a></li> |]
+stateHrefMB :: Maybe Integer -> Html
+stateHrefMB stateIdMB = case stateIdMB of 
+  Nothing -> [hsx| <li class="breadcrumb-item"> No Contract here </li> |]
+  Just stateId -> [hsx| <li class="breadcrumb-item"><a href={ShowContractAction (Id stateId)}>Contract</a></li> |]
+
+
+historyHrefMB :: Maybe UUID -> Html
+historyHrefMB historyIdMB = case historyIdMB of 
+  Nothing -> [hsx| <li class="breadcrumb-item"> No history here</li> |]
+  Just historyId -> [hsx| <li class="breadcrumb-item"><a href={ShowHistoryAction (Id historyId)}>History</a></li> |]
+
 
 instance View ShowView where
     html ShowView { .. } = [hsx|
         <nav>
             <ol class="breadcrumb">
                 <li class="breadcrumb-item"><a href={WorkflowsAction}>Workflows</a></li>
-                <li class="breadcrumb-item"><a href={ShowHistoryAction (Id contractHistoryId)}>History</a></li>
-                { contractHrefMB contractIdMB}                 
+                { historyHrefMB stateHistoryIdMB}                 
+                { stateHrefMB stateIdMB}                 
                 <li class="breadcrumb-item active">Show Workflow</li>
             </ol>
-        </nav>
+        </nav> 
         <h1>Show Workflow</h1>
         <p>{workflow}</p>
         <style type="text/css">

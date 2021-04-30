@@ -10,11 +10,6 @@ import Data.Maybe
 import qualified IHP.Log as Log
 import IHP.Log.Types
 
-today :: IO (Day) -- :: (year,month,day)
-today = getCurrentTime >>= return . utctDay
-maxday = fromGregorian 5874897 12 31
-
-
 instance Controller ContractsController where
 
     action ContractsAction = do
@@ -69,10 +64,11 @@ instance Controller ContractsController where
                     redirectTo EditContractAction {..}
 
     action DeleteContractAction { contractId } = do
+        workflow::Workflow <- getCurrentWorkflow
         contract <- fetch contractId
         deleteRecord contract
         setSuccessMessage "Contract deleted"
         redirectTo ContractsAction
 
 buildContract contract = contract
-    |> fill @'[ "refHistory" ,"refValidfromversion" ,"refValidthruversion", "content"]
+    |> fill @'["refHistory","refValidfromversion","refValidthruversion","content"]

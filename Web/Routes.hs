@@ -24,5 +24,6 @@ instance AutoRoute UserrolesController
 instance AutoRoute VersionsController where
     autoRoute = autoRouteWithIdType (parseIntegerId @(Id Version))
 
-instance AutoRoute TariffsController
+instance AutoRoute TariffsController where
+    autoRoute = autoRouteWithIdType (parseIntegerId @(Id Tariff))
 
