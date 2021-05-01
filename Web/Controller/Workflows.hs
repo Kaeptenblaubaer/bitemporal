@@ -210,46 +210,48 @@ redirectCreateState HistorytypeTariff Nothing  = redirectTo NewTariffAction
 redirectCreateState HistorytypeTariff (Just sid)  = redirectTo $ EditTariffAction $ Id sid
 
 redirectUpdateState :: (?context::ControllerContext, ?modelContext::ModelContext) => Workflow -> IO ()
-redirectUpdateState workflow = case get #historyType workflow of
-    HistorytypeContract -> case getWorkFlowState (fromJust $ getWfp workflow) HistorytypeContract of
-        Just (StateKeys (Just hid) Nothing Nothing Nothing) -> do
-            mutable :: (Contract,[Version]) <- queryMutableState workflow
-            let msg :: Text = case snd mutable of
-                    [] -> "not retrospective"
-                    shadowed -> "the following versions will be shadowed: " ++ foldr (((++)) . (\v -> show $ get #validfrom v)) "" shadowed
-            setSuccessMessage msg
-            redirectEditState HistorytypeContract (getKey (fst mutable))
-        Just (StateKeys _ _ (Just sid) _) ->
-            redirectEditState HistorytypeContract sid
-        _ -> do 
-            setErrorMessage "SHOULDN'T: history and state ids are null"
-            redirectTo WorkflowsAction
-    HistorytypePartner -> case getWorkFlowState (fromJust $ getWfp workflow) HistorytypePartner of
-        Just (StateKeys (Just hid) Nothing Nothing Nothing) -> do
-            mutable :: (Partner,[Version]) <- queryMutableState workflow
-            let msg :: Text = case snd mutable of
-                    [] -> "not retrospective"
-                    shadowed -> "the following versions will be shadowed: " ++ foldr (((++)) . (\v -> show $ get #validfrom v)) "" shadowed
-            setSuccessMessage msg
-            redirectEditState HistorytypePartner (getKey (fst mutable))
-        Just (StateKeys _ _ (Just sid) _) ->
-            redirectEditState HistorytypePartner sid
-        _ -> do 
-            setErrorMessage "SHOULDN'T: history and state ids are null"
-            redirectTo WorkflowsAction
-    HistorytypeTariff -> case getWorkFlowState (fromJust $ getWfp workflow) HistorytypeTariff of
-        Just (StateKeys (Just hid) Nothing Nothing Nothing) -> do
-            mutable :: (Tariff,[Version]) <- queryMutableState workflow
-            let msg :: Text = case snd mutable of
-                    [] -> "not retrospective"
-                    shadowed -> "the following versions will be shadowed: " ++ foldr (((++)) . (\v -> show $ get #validfrom v)) "" shadowed
-            setSuccessMessage msg
-            redirectEditState HistorytypeTariff (getKey (fst mutable))
-        Just (StateKeys _ _ (Just sid) _) ->
-            redirectEditState HistorytypeTariff sid
-        _ -> do 
-            setErrorMessage "SHOULDN'T: history and state ids are null"
-            redirectTo WorkflowsAction
+redirectUpdateState workflow = do
+    let histoType = get #historyType workflow 
+    case histoType of
+        HistorytypeContract -> case getWorkFlowState (fromJust $ getWfp workflow) histoType of
+            Just (StateKeys (Just hid) Nothing Nothing Nothing) -> do
+                mutable :: (Contract,[Version]) <- queryMutableState workflow
+                let msg :: Text = case snd mutable of
+                        [] -> "not retrospective"
+                        shadowed -> "the following versions will be shadowed: " ++ foldr (((++)) . (\v -> show $ get #validfrom v)) "" shadowed
+                setSuccessMessage msg
+                redirectEditState histoType (getKey (fst mutable))
+            Just (StateKeys _ _ (Just sid) _) ->
+                redirectEditState histoType sid
+            _ -> do 
+                setErrorMessage "SHOULDN'T: history and state ids are null"
+                redirectTo WorkflowsAction
+        HistorytypePartner -> case getWorkFlowState (fromJust $ getWfp workflow) histoType of
+            Just (StateKeys (Just hid) Nothing Nothing Nothing) -> do
+                mutable :: (Partner,[Version]) <- queryMutableState workflow
+                let msg :: Text = case snd mutable of
+                        [] -> "not retrospective"
+                        shadowed -> "the following versions will be shadowed: " ++ foldr (((++)) . (\v -> show $ get #validfrom v)) "" shadowed
+                setSuccessMessage msg
+                redirectEditState histoType (getKey (fst mutable))
+            Just (StateKeys _ _ (Just sid) _) ->
+                redirectEditState histoType sid
+            _ -> do 
+                setErrorMessage "SHOULDN'T: history and state ids are null"
+                redirectTo WorkflowsAction
+        HistorytypeTariff -> case getWorkFlowState (fromJust $ getWfp workflow) histoType of
+            Just (StateKeys (Just hid) Nothing Nothing Nothing) -> do
+                mutable :: (Tariff,[Version]) <- queryMutableState workflow
+                let msg :: Text = case snd mutable of
+                        [] -> "not retrospective"
+                        shadowed -> "the following versions will be shadowed: " ++ foldr (((++)) . (\v -> show $ get #validfrom v)) "" shadowed
+                setSuccessMessage msg
+                redirectEditState histoType (getKey (fst mutable))
+            Just (StateKeys _ _ (Just sid) _) ->
+                redirectEditState histoType sid
+            _ -> do 
+                setErrorMessage "SHOULDN'T: history and state ids are null"
+                redirectTo WorkflowsAction
 
 
 redirectEditState :: (?context::ControllerContext) => HistoryType -> Integer -> IO ()
