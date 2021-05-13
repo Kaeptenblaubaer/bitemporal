@@ -126,60 +126,52 @@ instance Controller WorkflowsController where
         let workflowId = get #id workflow
         Log.info $ "ToCOmmitWF wf="++ show workflowId
         let wfpMB = getWfp workflow
-        case get #historyType workflow of
-            HistorytypeContract -> do
-                case wfpMB of
-                    Just wfp -> case contract wfp of
-                        Just c  -> case history c of
-                            Just h -> do
-                                case version c of
-                                    Just v -> do
-                                        case state c of
-                                            Just s -> withTransaction do
-                                                Log.info $ "committing h:" ++ show h
-                                                hUnlocked :: History <- fetch (Id h)
-                                                hUnlocked |> set #refOwnedByWorkflow Nothing |> updateRecord
-                                                Log.info $ "Unlocked h:" ++ show h
-                                                setSuccessMessage $ "version=" ++ show v
-                                                newVersion :: Version <- fetch (Id v)
-                                                newVersion |>set #committed True |> updateRecord
-                                                Log.info $ "commit version v: " ++ show v
-                                                w <- workflow |> set #workflowStatus "committed" |> updateRecord
-                                                Log.info $ "commit workflow w: " ++ show w
-                                                sOld :: [Contract] <- query @ Contract |> filterWhere (#refHistory,Id h) |>
-                                                    filterWhereSql(#refValidfromversion,"<> " ++ encodeUtf8( show v)) |>
-                                                    filterWhere(#refValidthruversion,Nothing) |> fetch
-                                                case head sOld of
-                                                    Just sOld -> do
-                                                            sUpd :: Contract <- sOld |> set #refValidthruversion (Just (Id v)) |> updateRecord
-                                                            Log.info $ "contract predecessor terminated" ++ show s
-                                                    Nothing -> Log.info "no contract predecessor"
-                                                case getShadowed wfp of
-                                                    Nothing -> Log.info "No version"
-                                                    Just (shadow,shadowed) -> do
-                                                        updated :: [Version]<- sqlQuery "update versions v set ref_shadowedby = ? where id in ? returning * " (v, In shadowed)
-                                                        forEach updated (\v -> Log.info $ "updated" ++ show v)
-                                                commitTransaction
-                                                Log.info "commit successful"
-                                                redirectTo $ ShowWorkflowAction workflowId
-                                            Nothing -> do
-                                                setErrorMessage $ "cannot commit: state is null h=" ++ show h ++ "v=" ++ show v
-                                                redirectTo $ ShowWorkflowAction workflowId
-                                    Nothing -> do
-                                        setErrorMessage $ "cannot commit: version is null h=" ++ show h
-                                        redirectTo $ ShowWorkflowAction workflowId
+            histoType = get #historyType workflow
+        case wfpMB of
+            Just wfp -> do
+                case getStatehistoryIdMB wfp histoType of
+                    Just h -> case getStateVersionIdMB wfp histoType of
+                        Just v -> case getStateIdMB wfp histoType of
+                            Just s -> withTransaction do 
+                                Log.info $ "committing h:" ++ show h
+                                hUnlocked :: History <- fetch (Id h)
+                                hUnlocked |> set #refOwnedByWorkflow Nothing |> updateRecord
+                                Log.info $ "Unlocked h:" ++ show h
+                                setSuccessMessage $ "version=" ++ show v
+                                newVersion :: Version <- fetch (Id v)
+                                newVersion |>set #committed True |> updateRecord
+                                Log.info $ "commit version v: " ++ show v
+                                w <- workflow |> set #workflowStatus "committed" |> updateRecord
+                                Log.info $ "commit workflow w: " ++ show w
+                                sOld :: [Contract] <- query @ Contract |> filterWhere (#refHistory,Id h) |>
+                                    filterWhereSql(#refValidfromversion,"<> " ++ encodeUtf8( show v)) |>
+                                    filterWhere(#refValidthruversion,Nothing) |> fetch
+                                case head sOld of
+                                    Just sOld -> do
+                                            sUpd :: Contract <- sOld |> set #refValidthruversion (Just (Id v)) |> updateRecord
+                                            Log.info $ "contract predecessor terminated" ++ show s
+                                    Nothing -> Log.info "no contract predecessor"
+                                case getShadowed wfp of
+                                    Nothing -> Log.info "No version"
+                                    Just (shadow,shadowed) -> do
+                                        updated :: [Version]<- sqlQuery "update versions v set ref_shadowedby = ? where id in ? returning * " (v, In shadowed)
+                                        forEach updated (\v -> Log.info $ "updated" ++ show v)
+                                commitTransaction
+                                Log.info "commit successful"
+                                redirectTo $ ShowWorkflowAction workflowId
                             Nothing -> do
-                                    setErrorMessage "cannot commit: history is null"
-                                    redirectTo $ ShowWorkflowAction workflowId
+                                setErrorMessage $ "cannot commit: state is null h=" ++ show h ++ "v=" ++ show v
+                                redirectTo $ ShowWorkflowAction workflowId
                         Nothing -> do
-                                    setErrorMessage "cannot commit, SHOULDN'T: contract is null"
-                                    redirectTo $ ShowWorkflowAction workflowId
-                    Nothing -> do
-                            setErrorMessage "SHOULDN'T: empty progress data"
+                            setErrorMessage $ "cannot commit: version is null h=" ++ show h
                             redirectTo $ ShowWorkflowAction workflowId
-            entitytype -> do
-                setErrorMessage (show entitytype ++ "not implemented")
+                    Nothing -> do
+                        setErrorMessage "cannot commit: history is null"
+                        redirectTo $ ShowWorkflowAction workflowId
+            Nothing -> do
+                setErrorMessage "SHOULDN'T: empty progress data"
                 redirectTo $ ShowWorkflowAction workflowId
+
 
     action RollbackWorkflowAction = do
         workflowId <- getCurrentWorkflowId
@@ -209,6 +201,7 @@ redirectCreateState HistorytypePartner (Just sid)  = redirectTo $ EditPartnerAct
 redirectCreateState HistorytypeTariff Nothing  = redirectTo NewTariffAction 
 redirectCreateState HistorytypeTariff (Just sid)  = redirectTo $ EditTariffAction $ Id sid
 
+queryMutableStateKey :: (?context::context, ?modelContext::ModelContext, LoggingProvider context) => Workflow' (Id' "users") (QueryBuilder "histories") -> IO (Integer, [Version])
 queryMutableStateKey workflow =  do
     case get #historyType workflow of
         HistorytypeContract -> do 
