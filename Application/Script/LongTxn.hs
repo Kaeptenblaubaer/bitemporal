@@ -4,6 +4,7 @@ module Application.Script.LongTxn where
 {-# LANGUAGE DeriveAnyClass  #-}
 {-# LANGUAGE OverloadedStrings #-}
 import GHC.Exts
+import GHC.Records
 import GHC.Generics
 import Data.Maybe
 import Generated.Types
@@ -35,10 +36,15 @@ class (KnownSymbol (GetTableName rec), rec ~ GetModelByTableName (GetTableName r
     getKey m = case decimal $ recordToInputValue m of
                                     Left _ -> -1
                                     Right ( i , _) -> i
-
+    getAccessor :: (WorkflowProgress ->  Maybe (StateKeys (Id rec)))
     getWorkFlowState :: WorkflowProgress ->  Maybe (StateKeys (Id rec))
+    getWorkFlowState wfp = getAccessor wfp
+    setWorkFlowState :: WorkflowProgress -> Maybe (StateKeys (Id rec)) -> WorkflowProgress
+    initialWfpV :: (WorkflowProgress ->  Maybe (StateKeys (Id rec)) -> WorkflowProgress) -> UUID -> Value
+    initialWfpV accessor h = fromJust $ decode $ encode $ setWorkFlowState (WorkflowProgress Nothing Nothing Nothing) (Just (StateKeys {history = (Just h)} ))
 
     queryMutableState :: (?modelContext::ModelContext, ?context::context, LoggingProvider context )=> Workflow -> IO (rec,[Version])
+
     queryMutableState workflow =  do
         
         mutable :: (Version,[Version]) <- queryVersionMutableValidfrom workflow 
@@ -92,14 +98,21 @@ class (KnownSymbol (GetTableName rec), rec ~ GetModelByTableName (GetTableName r
                     where upd vid sid workflow = ((setContractId sid).(setContractVersionId vid)) workflow
 
 instance CanVersion Contract where
-    getWorkFlowState :: WorkflowProgress ->  Maybe (StateKeys (Id' (GetTableName rec)))
-    getWorkFlowState wfp = contract wfp
+    getAccessor :: (WorkflowProgress ->Maybe (StateKeys (Id' "contracts")))
+    getAccessor = (contract)
+    setWorkFlowState :: WorkflowProgress ->Maybe (StateKeys (Id' "contracts")) -> WorkflowProgress
+    setWorkFlowState wfp s = wfp  {contract = s} 
 instance CanVersion Partner where
-    getWorkFlowState :: WorkflowProgress ->  Maybe (StateKeys (Id rec))
-    getWorkFlowState wfp = partner wfp
+    getAccessor :: (WorkflowProgress ->Maybe (StateKeys (Id' "partners")))
+    getAccessor = (partner)
+    setWorkFlowState :: WorkflowProgress ->Maybe (StateKeys (Id' "partners")) -> WorkflowProgress
+    setWorkFlowState wfp s = wfp  {partner = s} 
 instance CanVersion Tariff where
-    getWorkFlowState :: WorkflowProgress ->  Maybe (StateKeys (Id rec))
-    getWorkFlowState wfp = tariff wfp
+    setWorkFlowState :: WorkflowProgress ->Maybe (StateKeys (Id' "tariffs")) -> WorkflowProgress
+    setWorkFlowState wfp s = wfp  {tariff = s} 
+    getAccessor :: (WorkflowProgress ->Maybe (StateKeys (Id' "tariffs")))
+    getAccessor = (tariff)
+
 
 queryVersionMutableValidfrom :: (?modelContext::ModelContext) => Workflow -> IO (Version,[Version])
 queryVersionMutableValidfrom workflow = do
@@ -145,29 +158,31 @@ setCurrentWorkflowId workflow = do
 fromId :: Id' table -> PrimaryKey table
 fromId (Id key) = key
 
-data StateKeys state = StateKeys  {
-    history :: Maybe UUID , version :: Maybe Integer, state :: Maybe (Id state), shadowed :: Maybe (Integer,[Integer])} deriving (Generic)
+data StateKeys stateId = StateKeys  {
+    history :: Maybe UUID , version :: Maybe Integer, state :: Maybe stateId, shadowed :: Maybe (Integer,[Integer])} deriving (Generic)
 data WorkflowProgress = WorkflowProgress {
-    contract :: Maybe (StateKeys Contract), partner:: Maybe (StateKeys Partner) , tariff :: Maybe (StateKeys Tariff)
+    contract :: Maybe (StateKeys (Id' "contracts")), partner:: Maybe (StateKeys (Id' "partners")) , tariff :: Maybe (StateKeys (Id' "tariffs"))
     } deriving (Generic)
-instance FromJSON (StateKeys Contract)
-instance ToJSON (StateKeys Contract)
-instance FromJSON (StateKeys Partner)
-instance ToJSON (StateKeys Partner)
-instance FromJSON (StateKeys Tariff)
-instance ToJSON (StateKeys Tariff)
+instance FromJSON (StateKeys (Id' "contracts"))
+instance ToJSON (StateKeys (Id' "contracts"))
+instance FromJSON (StateKeys (Id' "partners"))
+instance ToJSON (StateKeys (Id' "partners"))
+instance FromJSON (StateKeys (Id' "tariffs"))
+instance ToJSON (StateKeys (Id' "tariffs"))
 instance FromJSON WorkflowProgress
 instance ToJSON WorkflowProgress
+
 
 getWfp :: Workflow -> Maybe WorkflowProgress
 getWfp workflow  =  decode $ encode $ get #progress workflow
 
-initialWfpV :: HistoryType -> UUID -> Value
-initialWfpV histoType historyId = fromJust $ decode $ encode $ case histoType of
-    HistorytypeContract -> WorkflowProgress { contract = Just $ StateKeys (Just historyId) Nothing Nothing Nothing , partner = Nothing, tariff = Nothing}
-    HistorytypePartner -> WorkflowProgress {partner = Just $ StateKeys (Just historyId) Nothing Nothing Nothing , contract = Nothing, tariff = Nothing}
-    HistorytypeTariff -> WorkflowProgress {tariff = Just $ StateKeys (Just historyId) Nothing Nothing Nothing, contract = Nothing , partner = Nothing }
 
+-- initialWfpV :: HistoryType -> UUID -> Value
+-- initialWfpV histoType historyId = fromJust $ decode $ encode $ case histoType of
+--     HistorytypeContract -> WorkflowProgress { contract = Just $ StateKeys (Just historyId) Nothing Nothing Nothing , partner = Nothing, tariff = Nothing}
+--     HistorytypePartner -> WorkflowProgress {partner = Just $ StateKeys (Just historyId) Nothing Nothing Nothing , contract = Nothing, tariff = Nothing}
+--     HistorytypeTariff -> WorkflowProgress {tariff = Just $ StateKeys (Just historyId) Nothing Nothing Nothing, contract = Nothing , partner = Nothing }
+-- 
 updateWfpV :: Value -> HistoryType -> UUID -> Integer -> Integer -> Value
 updateWfpV wfp histoType historyId versionId stateId =
     let stateKeys = Just (StateKeys (Just historyId)  (Just versionId) (Just stateId) Nothing)
