@@ -8,6 +8,6 @@
 	"settings": {
 		"nixEnvSelector.nixShellConfig": "/home/mf/baba/default.nix",
 		"terminal.integrated.cwd": "${workspaceRoot}",
-		"nixEnvSelector.nixFile": "${workspaceRoot}/default.nix"
+		"nixEnvSelector.suggestion": false
 	}
 }
