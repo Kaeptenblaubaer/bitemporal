@@ -29,7 +29,7 @@ class (KnownSymbol (GetTableName rec), rec ~ GetModelByTableName (GetTableName r
     HasField "refValidfromversion" rec (Id Version), SetField "refValidfromversion" rec (Id Version),
     HasField "refValidthruversion" rec (Maybe(Id Version)), SetField "refValidthruversion" rec (Maybe (Id Version)),
 
-    HasField "content" rec Text, SetField "content" rec Text) => CanVersion rec 
+    HasField "content" rec Text, SetField "content" rec Text, HasTxnLog rec) => CanVersion rec 
     where
 
     getKey :: rec -> Integer
@@ -50,7 +50,7 @@ class (KnownSymbol (GetTableName rec), rec ~ GetModelByTableName (GetTableName r
     getStateIdMB :: (WorkflowProgress ->  Maybe (StateKeys (Id rec))) ->WorkflowProgress -> Maybe (Id rec)
     getStateIdMB  accessor wfp = maybe Nothing state (accessor wfp)
 
-    mkPersistenceLog :: CRULog (Id rec) -> PersistenceLog
+    mkPersistenceLogState :: CRULog (Id rec) -> PersistenceLog
 
     queryMutableState :: (?modelContext::ModelContext, ?context::context, LoggingProvider context )=> (WorkflowProgress ->  Maybe (StateKeys (Id rec)))-> Workflow -> IO (rec,[Version])
     queryMutableState accessor workflow =  do
@@ -84,6 +84,11 @@ class (KnownSymbol (GetTableName rec), rec ~ GetModelByTableName (GetTableName r
         let stateId  = get #id state :: Id rec
             wfp = setWorkFlowState (WorkflowProgress Nothing Nothing Nothing) $ Just ((stateKeysDefault {history = Just historyUUID, version = Just versionId, state = Just stateId }) :: StateKeys (Id rec))
             progress = toJSON wfp
+            cruS :: CRULog (Id rec) = mkInsertLog stateId
+            cruW :: CRULog (Id Workflow) = mkInsertLog $ get #id workflow
+            cruH :: CRULog (Id History) = mkInsertLog $ get #id history
+            cruV :: CRULog (Id Version) = mkInsertLog $ get #id version
+            pl  = [mkPersistenceLogState cruS, WorkflowPL cruW, HistoryPL cruH, VersionPL cruV]
         uptodate ::Workflow <- workflow |> set #progress progress |> updateRecord
         Log.info ("hier ist Workflow mit JSON " ++ (show (get #progress uptodate)))
         pure state 
@@ -129,22 +134,22 @@ class (KnownSymbol (GetTableName rec), rec ~ GetModelByTableName (GetTableName r
 instance CanVersion Contract where
     getAccessor :: (WorkflowProgress -> Maybe (StateKeys (Id' "contracts")))
     getAccessor = (contract)
-    mkPersistenceLog :: CRULog (Id Contract) -> PersistenceLog
-    mkPersistenceLog cru = ContractPL cru
+    mkPersistenceLogState :: CRULog (Id Contract) -> PersistenceLog
+    mkPersistenceLogState cru = ContractPL cru
     setWorkFlowState :: WorkflowProgress -> Maybe (StateKeys (Id' "contracts")) -> WorkflowProgress
     setWorkFlowState wfp s = wfp  {contract = s} 
 instance CanVersion Partner where
     getAccessor :: (WorkflowProgress ->Maybe (StateKeys (Id' "partners")))
     getAccessor = (partner)
-    mkPersistenceLog :: CRULog (Id Partner) -> PersistenceLog
-    mkPersistenceLog cru = PartnerPL cru
+    mkPersistenceLogState :: CRULog (Id Partner) -> PersistenceLog
+    mkPersistenceLogState cru = PartnerPL cru
     setWorkFlowState :: WorkflowProgress ->Maybe (StateKeys (Id' "partners")) -> WorkflowProgress
     setWorkFlowState wfp s = wfp  {partner = s} 
 instance CanVersion Tariff where
     getAccessor :: (WorkflowProgress ->Maybe (StateKeys (Id' "tariffs")))
     getAccessor = (tariff)
-    mkPersistenceLog :: CRULog (Id Tariff) -> PersistenceLog
-    mkPersistenceLog cru = TariffPL cru
+    mkPersistenceLogState :: CRULog (Id Tariff) -> PersistenceLog
+    mkPersistenceLogState cru = TariffPL cru
     setWorkFlowState :: WorkflowProgress ->Maybe (StateKeys (Id' "tariffs")) -> WorkflowProgress
     setWorkFlowState wfp s = wfp  {tariff = s} 
 
@@ -246,8 +251,8 @@ instance FromJSON (Id' "tariffs") where
 class (KnownSymbol (GetTableName rec), rec ~ GetModelByTableName (GetTableName rec), Record rec, FilterPrimaryKey (GetTableName rec),CanCreate rec,Fetchable (QueryBuilder (GetTableName rec))  rec, FromRow rec,
     HasField "id" rec (Id rec), Show rec, Show (PrimaryKey (GetTableName rec)) , ToJSON (PrimaryKey (GetTableName rec))) => HasTxnLog rec 
     where
-    mkInsertLog :: rec -> CRULog (Id rec)
-    mkInsertLog row = Inserted $ get #id row
+    mkInsertLog :: Id rec -> CRULog (Id rec)
+    mkInsertLog id = Inserted id
     mkUpdateLog :: rec -> rec -> CRULog (Id rec)
     mkUpdateLog old new = Updated (get #id old) (get #id new)
     commit ::  (?modelContext::ModelContext, ?context::context, LoggingProvider context )  => CRULog (Id rec) -> IO()
@@ -295,29 +300,29 @@ run = do
     Log.info $ show p
     Log.info $ show t
     Log.info ("=============================================" :: String)
-    let tlogWC :: CRULog (Id Workflow) = mkInsertLog wfc
+    let tlogWC :: CRULog (Id Workflow) = mkInsertLog (get #id wfc)
         tlogWCJ = toJSON tlogWC
-        tlogC :: CRULog (Id Contract) = mkInsertLog c
+        tlogC :: CRULog (Id Contract) = mkInsertLog (get #id c)
         tlogCJ = toJSON tlogC
-        tlogHC :: CRULog (Id History) = mkInsertLog ch
+        tlogHC :: CRULog (Id History) = mkInsertLog (get #id ch)
         tlogHCJ = toJSON tlogHC
-        tlogVC :: CRULog (Id Version) = mkInsertLog cv
+        tlogVC :: CRULog (Id Version) = mkInsertLog (get #id cv)
         tlogVCJ = toJSON tlogVC
-        tlogWP :: CRULog (Id Workflow) = mkInsertLog wfp
+        tlogWP :: CRULog (Id Workflow) = mkInsertLog (get #id wfp)
         tlogWPJ = toJSON tlogWC
-        tlogP :: CRULog (Id Partner) = mkInsertLog p
+        tlogP :: CRULog (Id Partner) = mkInsertLog (get #id p)
         tlogPJ = toJSON tlogP
-        tlogHP :: CRULog (Id History) = mkInsertLog ph
+        tlogHP :: CRULog (Id History) = mkInsertLog (get #id ph)
         tlogHPJ = toJSON tlogHP
-        tlogVP :: CRULog (Id Version) = mkInsertLog pv
+        tlogVP :: CRULog (Id Version) = mkInsertLog (get #id pv)
         tlogVPJ = toJSON tlogVP
-        tlogWT :: CRULog (Id Workflow) = mkInsertLog wft
+        tlogWT :: CRULog (Id Workflow) = mkInsertLog (get #id wft)
         tlogWTJ = toJSON tlogWT
-        tlogT :: CRULog (Id Tariff) = mkInsertLog t
+        tlogT :: CRULog (Id Tariff) = mkInsertLog (get #id t)
         tlogTJ = toJSON tlogC
-        tlogHT :: CRULog (Id History) = mkInsertLog th
+        tlogHT :: CRULog (Id History) = mkInsertLog (get #id th)
         tlogHTJ = toJSON tlogHT
-        tlogVT :: CRULog (Id Version) = mkInsertLog tv
+        tlogVT :: CRULog (Id Version) = mkInsertLog (get #id tv)
         tlogVTJ = toJSON tlogVT
         persistenceLogC :: [PersistenceLog] =[ ContractPL tlogC, VersionPL tlogVC, HistoryPL tlogHC, WorkflowPL tlogWC]
         persistenceLogCJ = toJSON persistenceLogC
