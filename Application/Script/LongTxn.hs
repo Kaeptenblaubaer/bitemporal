@@ -82,13 +82,14 @@ class (KnownSymbol (GetTableName rec), rec ~ GetModelByTableName (GetTableName r
             histoType = get #historyType workflow
         state ::rec <- state |> set #refHistory (get #id history) |> set #refValidfromversion (get #id version) |> createRecord
         let stateId  = get #id state :: Id rec
-            wfp = setWorkFlowState (WorkflowProgress Nothing Nothing Nothing) $ Just ((stateKeysDefault {history = Just historyUUID, version = Just versionId, state = Just stateId }) :: StateKeys (Id rec))
-            progress = toJSON wfp
             cruS :: CRULog (Id rec) = mkInsertLog stateId
             cruW :: CRULog (Id Workflow) = mkInsertLog $ get #id workflow
             cruH :: CRULog (Id History) = mkInsertLog $ get #id history
             cruV :: CRULog (Id Version) = mkInsertLog $ get #id version
             pl  = [mkPersistenceLogState cruS, WorkflowPL cruW, HistoryPL cruH, VersionPL cruV]
+            wfp = setWorkFlowState (WorkflowProgress Nothing Nothing Nothing []) $ 
+                Just ((stateKeysDefault {history = Just historyUUID, version = Just versionId, state = Just stateId}) :: StateKeys (Id rec)) 
+            progress = toJSON wfp {plog = pl}
         uptodate ::Workflow <- workflow |> set #progress progress |> updateRecord
         Log.info ("hier ist Workflow mit JSON " ++ (show (get #progress uptodate)))
         pure state 
@@ -181,7 +182,8 @@ data StateKeys stateId = StateKeys  {
 stateKeysDefault = StateKeys Nothing Nothing Nothing Nothing 
 
 data WorkflowProgress = WorkflowProgress {
-    contract :: Maybe (StateKeys (Id' "contracts")), partner:: Maybe (StateKeys (Id' "partners")) , tariff :: Maybe (StateKeys (Id' "tariffs"))
+    contract :: Maybe (StateKeys (Id' "contracts")), partner:: Maybe (StateKeys (Id' "partners")) , tariff :: Maybe (StateKeys (Id' "tariffs")),
+    plog :: [PersistenceLog]
     } deriving (Generic)
 instance FromJSON (StateKeys (Id' "contracts"))
 instance ToJSON (StateKeys (Id' "contracts"))
@@ -201,10 +203,10 @@ setWfp wf wfp = wf |> set #progress ( fromJust $ decode $ encode wfp )
 
 
 getShadowed :: WorkflowProgress -> Maybe (Integer,[Integer])
-getShadowed (WorkflowProgress (Just (StateKeys h v c shadowed)) partner tariff) = shadowed
+getShadowed (WorkflowProgress (Just (StateKeys h v c shadowed)) partner tariff plog) = shadowed
 
 setShadowed :: WorkflowProgress -> (Integer,[Integer]) -> WorkflowProgress
-setShadowed (WorkflowProgress (Just (StateKeys h v c sh)) partner tariff) shadowed = WorkflowProgress (Just (StateKeys h v c (Just shadowed))) partner tariff
+setShadowed (WorkflowProgress (Just (StateKeys h v c sh)) partner tariff plog) shadowed = WorkflowProgress (Just (StateKeys h v c (Just shadowed))) partner tariff plog
 
 data CRULog a = Inserted  { key::a }| Updated { old::a , new :: a } deriving (Generic, Show,Read)
 instance (ToJSON a) => ToJSON (CRULog a)
