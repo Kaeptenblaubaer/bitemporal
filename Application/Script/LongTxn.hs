@@ -40,21 +40,19 @@ class (KnownSymbol (GetTableName rec), rec ~ GetModelByTableName (GetTableName r
     getAccessor :: (WorkflowProgress ->  Maybe (StateKeys (Id rec)))
     getWorkFlowState :: WorkflowProgress ->  Maybe (StateKeys (Id rec))
     getWorkFlowState wfp = getAccessor wfp
-    setWorkFlowState :: (?accessor::(WorkflowProgress ->  Maybe (StateKeys (Id rec))))=> WorkflowProgress -> Maybe (StateKeys (Id rec)) -> WorkflowProgress
-    initialWfpV :: (?accessor::(WorkflowProgress ->  Maybe (StateKeys (Id rec))))=> UUID -> Value
-    initialWfpV h = fromJust $ decode $ encode $ setWorkFlowState (WorkflowProgress Nothing Nothing Nothing) (Just (stateKeysDefault {history = Just h } ))
-    updateWfpV :: (?accessor::(WorkflowProgress ->  Maybe (StateKeys (Id rec))))=> WorkflowProgress -> Integer -> (Id rec) -> Value
-    updateWfpV wfp v s = fromJust $ decode $ encode $ setWorkFlowState wfp (Just (stateKeysDefault { version= Just v, state= Just s } ))
-    getStatehistoryIdMB :: (?accessor::(WorkflowProgress ->  Maybe (StateKeys (Id rec))))=> WorkflowProgress -> Maybe UUID
-    getStatehistoryIdMB wfp = maybe Nothing history (?accessor wfp)
-    getStateVersionIdMB :: (?accessor::(WorkflowProgress ->  Maybe (StateKeys (Id rec))))=> WorkflowProgress -> Maybe Integer
-    getStateVersionIdMB wfp = maybe Nothing version (?accessor wfp)
-    getStateIdMB :: (?accessor::(WorkflowProgress ->  Maybe (StateKeys (Id rec))))=> WorkflowProgress -> Maybe (Id rec)
-    getStateIdMB  wfp = maybe Nothing state (?accessor wfp)
+    setWorkFlowState :: WorkflowProgress -> Maybe (StateKeys (Id rec)) -> WorkflowProgress
+    updateWfpV :: (WorkflowProgress ->  Maybe (StateKeys (Id rec))) -> WorkflowProgress -> Integer -> (Id rec) -> Value
+    updateWfpV accessor wfp v s = fromJust $ decode $ encode $ setWorkFlowState wfp (Just (stateKeysDefault { version= Just v, state= Just s } ))
+    getStatehistoryIdMB :: (WorkflowProgress ->  Maybe (StateKeys (Id rec))) -> WorkflowProgress -> Maybe UUID
+    getStatehistoryIdMB accessor wfp = maybe Nothing history (accessor wfp)
+    getStateVersionIdMB :: (WorkflowProgress ->  Maybe (StateKeys (Id rec))) ->WorkflowProgress -> Maybe Integer
+    getStateVersionIdMB accessor wfp = maybe Nothing version (accessor wfp)
+    getStateIdMB :: (WorkflowProgress ->  Maybe (StateKeys (Id rec))) ->WorkflowProgress -> Maybe (Id rec)
+    getStateIdMB  accessor wfp = maybe Nothing state (accessor wfp)
 
-    queryMutableState :: (?accessor::(WorkflowProgress ->  Maybe (StateKeys (Id rec))), ?modelContext::ModelContext, ?context::context, LoggingProvider context )=> Workflow -> IO (rec,[Version])
-    queryMutableState workflow =  do
-        mutable :: (Version,[Version]) <- queryVersionMutableValidfrom workflow 
+    queryMutableState :: (?modelContext::ModelContext, ?context::context, LoggingProvider context )=> (WorkflowProgress ->  Maybe (StateKeys (Id rec)))-> Workflow -> IO (rec,[Version])
+    queryMutableState accessor workflow =  do
+        mutable :: (Version,[Version]) <- queryVersionMutableValidfrom accessor workflow 
         let h = get #refHistory $ fst mutable
         Log.info $ "querymutable " ++ show h
         let v = get #id $ fst mutable
@@ -70,8 +68,8 @@ class (KnownSymbol (GetTableName rec), rec ~ GetModelByTableName (GetTableName r
         mstate <- query @rec |> filterWhere (#refValidfromversion, versionId) |> fetchOne
         pure $ get #id mstate
 
-    createHistory :: (?accessor::(WorkflowProgress ->  Maybe (StateKeys (Id rec))), ?modelContext::ModelContext, ?context::context, LoggingProvider context ) => Workflow -> rec -> IO rec
-    createHistory workflow state = do
+    createHistory :: (?modelContext::ModelContext, ?context::context, LoggingProvider context ) => (WorkflowProgress ->  Maybe (StateKeys (Id rec))) -> Workflow -> rec -> IO rec
+    createHistory accessor workflow state = do
         Log.info $ "createHistory for workflow: " ++ (show (get #id workflow))
         history ::History <- newRecord |> set #historyType (get #historyType workflow) |> set #refOwnedByWorkflow (Just $ get #id workflow)|> createRecord
         let historyUUID ::UUID = bubu $ get #id history
@@ -79,18 +77,19 @@ class (KnownSymbol (GetTableName rec), rec ~ GetModelByTableName (GetTableName r
         version :: Version <- newRecord |> set #refHistory (get #id history) |>  set #validfrom (get #validfrom workflow) |> createRecord
         let versionId :: Integer = bubu $ get #id version
                                     where bubu (Id intid) = intid
-            histoType = undefined -- get #historyType workflow
-            wfp = initialWfpV historyUUID
-            progress = toJSON wfp
+            histoType = get #historyType workflow
         state ::rec <- state |> set #refHistory (get #id history) |> set #refValidfromversion (get #id version) |> createRecord
+        let stateId  = get #id state :: Id rec
+            wfp = setWorkFlowState (WorkflowProgress Nothing Nothing Nothing) $ Just ((stateKeysDefault {history = Just historyUUID, version = Just versionId, state = Just stateId }) :: StateKeys (Id rec))
+            progress = toJSON wfp
         uptodate ::Workflow <- workflow |> set #progress progress |> updateRecord
         putStrLn ("hier ist Workflow mit JSON " ++ (show (get #progress uptodate)))
-        pure state
+        pure state 
  
-    mutateHistory :: (?accessor::(WorkflowProgress ->  Maybe (StateKeys (Id rec))), ?modelContext::ModelContext) => Workflow -> rec -> IO rec
-    mutateHistory workflow state = do
+    mutateHistory :: (?modelContext::ModelContext) => (WorkflowProgress ->  Maybe (StateKeys (Id rec))) -> Workflow -> rec -> IO rec
+    mutateHistory accessor workflow state = do
         let wfprogress :: WorkflowProgress = fromJust $ getWfp workflow
-        let versionIdMB = getStateVersionIdMB wfprogress
+        let versionIdMB = getStateVersionIdMB accessor wfprogress
         case versionIdMB of
             Just v -> pure state
             Nothing -> do
@@ -100,16 +99,17 @@ class (KnownSymbol (GetTableName rec), rec ~ GetModelByTableName (GetTableName r
                 version :: Version <- newRecord |> set #refHistory historyId |> set #validfrom (get #validfrom workflow) |> createRecord
                 newState :: rec <- newRecord |> set #refHistory historyId |> set #refValidfromversion (get #id version) |>
                     set #content (get #content state) |> createRecord
-                workflow :: Workflow <- workflow |> set #progress (updateWfpV wfprogress (fromId $ get #id version) (get #id newState ))   |> updateRecord                  
+                let wfpNew :: Value = updateWfpV accessor wfprogress (fromId $ get #id version) (get #id newState )
+                workflow :: Workflow <- workflow |> set #progress wfpNew   |> updateRecord                  
                 pure newState
 
-    queryVersionMutableValidfrom :: (?accessor::(WorkflowProgress ->  Maybe (StateKeys (Id rec))), ?modelContext::ModelContext) => Workflow -> IO (Version,[Version])
-    queryVersionMutableValidfrom workflow = do
+    queryVersionMutableValidfrom :: (?modelContext::ModelContext) => (WorkflowProgress ->  Maybe (StateKeys (Id rec))) -> Workflow -> IO (Version,[Version])
+    queryVersionMutableValidfrom accessor workflow = do
         putStrLn ( "queryVersionMutableValidfrom Workflow=" ++ (show workflow) )
         let wfprogress :: WorkflowProgress = fromJust $ getWfp workflow
             validfrom = tshow $ get #validfrom workflow
             -- histoType = get #historyType workflow
-            historyId =  fromJust $ getStatehistoryIdMB wfprogress
+            historyId =  fromJust $ getStatehistoryIdMB accessor wfprogress
             q :: Query = "SELECT * FROM versions v WHERE v.id in (SELECT max(id) FROM versions where ref_history = ? and validfrom <= ?)"
             p :: (Id History, Text) = (Id historyId, validfrom)
         vs :: [Version]  <- sqlQuery  q p
@@ -125,9 +125,9 @@ class (KnownSymbol (GetTableName rec), rec ~ GetModelByTableName (GetTableName r
             where getKey (Id key) = key
 
 instance CanVersion Contract where
-    getAccessor :: (WorkflowProgress ->Maybe (StateKeys (Id' "contracts")))
+    getAccessor :: (WorkflowProgress -> Maybe (StateKeys (Id' "contracts")))
     getAccessor = (contract)
-    setWorkFlowState :: WorkflowProgress ->Maybe (StateKeys (Id' "contracts")) -> WorkflowProgress
+    setWorkFlowState :: WorkflowProgress -> Maybe (StateKeys (Id' "contracts")) -> WorkflowProgress
     setWorkFlowState wfp s = wfp  {contract = s} 
 instance CanVersion Partner where
     getAccessor :: (WorkflowProgress ->Maybe (StateKeys (Id' "partners")))
@@ -135,10 +135,10 @@ instance CanVersion Partner where
     setWorkFlowState :: WorkflowProgress ->Maybe (StateKeys (Id' "partners")) -> WorkflowProgress
     setWorkFlowState wfp s = wfp  {partner = s} 
 instance CanVersion Tariff where
-    setWorkFlowState :: WorkflowProgress ->Maybe (StateKeys (Id' "tariffs")) -> WorkflowProgress
-    setWorkFlowState wfp s = wfp  {tariff = s} 
     getAccessor :: (WorkflowProgress ->Maybe (StateKeys (Id' "tariffs")))
     getAccessor = (tariff)
+    setWorkFlowState :: WorkflowProgress ->Maybe (StateKeys (Id' "tariffs")) -> WorkflowProgress
+    setWorkFlowState wfp s = wfp  {tariff = s} 
 
 getCurrentWorkflow :: (?context::ControllerContext, ?modelContext::ModelContext) => IO Workflow
 getCurrentWorkflow  = do
@@ -186,41 +186,17 @@ getWfp workflow  =  decode $ encode $ get #progress workflow
 setWfp :: Workflow -> WorkflowProgress -> Workflow
 setWfp wf wfp = wf |> set #progress ( fromJust $ decode $ encode wfp )
 
--- getWorkFlowState :: WorkflowProgress ->  HistoryType ->Maybe StateKeys
--- getWorkFlowState wfp histoType = case histoType of
---             HistorytypeContract -> contract wfp
---             HistorytypePartner ->  partner wfp
---             HistorytypeTariff ->  tariff wfp
-
--- getStatehistoryIdMB :: WorkflowProgress -> HistoryType -> Maybe UUID
--- getStatehistoryIdMB wfp histoType = case getWorkFlowState  wfp histoType of
---     Nothing -> Nothing
---     Just wfstate -> history wfstate 
+-- setContractVersionId :: Integer -> WorkflowProgress -> WorkflowProgress
+-- setContractVersionId vid (WorkflowProgress (Just (StateKeys h v c sh)) partner tariff) = WorkflowProgress (Just (StateKeys h (Just vid) c sh)) partner tariff
 -- 
--- getStateVersionIdMB :: WorkflowProgress -> HistoryType -> Maybe Integer
--- getStateVersionIdMB wfp histoType = case getWorkFlowState  wfp histoType of
---     Nothing -> Nothing
---     Just wfstate -> version wfstate
+-- setContractId :: (Id Contract) -> WorkflowProgress -> WorkflowProgress
+-- setContractId sid (WorkflowProgress (Just (StateKeys h v c sh)) partner tariff)  = WorkflowProgress (Just (StateKeys h v (Just sid) sh)) partner tariff
 -- 
--- getStateIdMB :: WorkflowProgress -> HistoryType -> Maybe Integer
--- getStateIdMB  wfp histoType = case getWorkFlowState  wfp histoType of
---     Nothing -> Nothing
---     Just wfstate -> state wfstate
--- 
--- getContractId :: Workflow -> Id Contract
--- getContractId workflow =  Id $ fromJust $ getStateIdMB (fromJust $ (decode . encode) $ get  #progress workflow) (get #historyType workflow)
-setContractVersionId :: Integer -> WorkflowProgress -> WorkflowProgress
-setContractVersionId vid (WorkflowProgress (Just (StateKeys h v c sh)) partner tariff) = WorkflowProgress (Just (StateKeys h (Just vid) c sh)) partner tariff
-
-setContractId :: (Id Contract) -> WorkflowProgress -> WorkflowProgress
-setContractId sid (WorkflowProgress (Just (StateKeys h v c sh)) partner tariff)  = WorkflowProgress (Just (StateKeys h v (Just sid) sh)) partner tariff
-
 getShadowed :: WorkflowProgress -> Maybe (Integer,[Integer])
 getShadowed (WorkflowProgress (Just (StateKeys h v c shadowed)) partner tariff) = shadowed
 
 setShadowed :: WorkflowProgress -> (Integer,[Integer]) -> WorkflowProgress
 setShadowed (WorkflowProgress (Just (StateKeys h v c sh)) partner tariff) shadowed = WorkflowProgress (Just (StateKeys h v c (Just shadowed))) partner tariff
-
 
 data CRULog a = Inserted  { key::a }| Updated { old::a , new :: a } deriving (Generic, Show,Read)
 instance (ToJSON a) => ToJSON (CRULog a)
@@ -296,58 +272,66 @@ getPLOG workflow  =  decode $ encode $ get #progress workflow
 run :: Script
 run = do
     usr :: User <- query @User |> fetchOne 
-    wf ::Workflow <- newRecord |> set #refUser (get #id usr) |> createRecord
-    h :: History <- newRecord |> set #refOwnedByWorkflow (Just $ get #id wf) |> createRecord
-    v :: Version <- newRecord |> set #refHistory (get #id h )|> createRecord  
-    c :: Contract <- newRecord |> set #refHistory (get #id h) |> set #refValidfromversion (get #id v )|> createRecord
-    p :: Partner <- newRecord |> set #refHistory (get #id h) |> set #refValidfromversion (get #id v )|> createRecord
-    t :: Tariff <- newRecord |> set #refHistory (get #id h) |> set #refValidfromversion (get #id v )|> createRecord
-    let tlogW :: CRULog (Id Workflow) = mkInsertLog wf
-        tlogWJ = toJSON tlogW
-        tlogH :: CRULog (Id History) = mkInsertLog h
-        tlogHJ = toJSON tlogH
-        tlogV :: CRULog (Id Version) = mkInsertLog v
-        tlogVJ = toJSON tlogV
-        tlogC :: CRULog (Id Contract) = mkInsertLog c
-        tlogCJ = toJSON tlogC
-        tlogP :: CRULog (Id Partner) = mkInsertLog p
-        tlogPJ = toJSON tlogP
-        tlogT :: CRULog (Id Tariff) = mkInsertLog t
-        tlogTJ = toJSON tlogT
-        persistenceLog :: [PersistenceLog] =[ TariffPL tlogT, PartnerPL tlogP, ContractPL tlogC, VersionPL tlogV, HistoryPL tlogH, WorkflowPL tlogW ]
-        persistenceLogJ = toJSON persistenceLog
-    putStrLn $ show  tlogWJ
-    putStrLn $ show  tlogHJ
-    putStrLn $ show  tlogVJ
-    putStrLn $ show  tlogCJ
-    putStrLn $ show  tlogPJ
-    putStrLn $ show  tlogTJ
-    v2 :: Version <- fetch $ key tlogV
-    putStrLn $ show v2
+    wfc ::Workflow <- newRecord |> set #refUser (get #id usr) |> set #historyType HistorytypeContract |> createRecord
+    wfp ::Workflow <- newRecord |> set #refUser (get #id usr) |> set #historyType HistorytypePartner |> createRecord
+    wft ::Workflow <- newRecord |> set #refUser (get #id usr) |> set #historyType HistorytypeTariff |> createRecord  
+    let c0 :: Contract = newRecord
+        p0 :: Partner = newRecord
+        t0 :: Tariff = newRecord
+    c::Contract <- createHistory (contract)wfc c0
+    p::Partner <- createHistory (partner) wfp p0
+    t::Tariff <- createHistory (tariff) wft t0
     putStrLn "============================================="
-    putStrLn $ show persistenceLog
-    putStrLn "---------------------------------------------"
-    putStrLn $ show persistenceLogJ
-    putStrLn "============================================="
-    wf <- wf |> set #progress persistenceLogJ |> updateRecord
-    wf :: Workflow <- fetch $ get #id wf 
-    let plogMB  = getPLOG wf
-        plog = fromJust plogMB
-    putStrLn "************************************************"
-    putStrLn $ "SHOWING plog of " ++ show (get #id wf) ++ show plog
-    putStrLn "************************************************"
-    putStrLn "VOR  LOGLOGLOGLOGLOGLOGLOGLOGLOGLOGLOGLOGLOGLOGLOGLOG"
-
-    forEach plog \pl -> do
-        putStrLn $ "Logged plog:" ++ show pl
-        case pl of
-            WorkflowPL cru -> commit cru
-            HistoryPL cru -> commit cru
-            VersionPL cru -> commit cru
-            ContractPL cru -> commit cru
-            PartnerPL cru -> commit cru
-            TariffPL cru -> commit cru
-        putStrLn "Logged nach Commit"
-
-    putStrLn "NACH LOGLOGLOGLOGLOGLOGLOGLOGLOGLOGLOGLOGLOGLOGLOGLOG"
+    putStrLn $ show c
+    putStrLn $ show p
+    putStrLn $ show t
+--    putStrLn "============================================="
+--    let tlogW :: CRULog (Id Workflow) = mkInsertLog wf
+--        tlogWJ = toJSON tlogW
+--        tlogH :: CRULog (Id History) = mkInsertLog h
+--        tlogHJ = toJSON tlogH
+--        tlogV :: CRULog (Id Version) = mkInsertLog v
+--        tlogVJ = toJSON tlogV
+--        tlogC :: CRULog (Id Contract) = mkInsertLog c
+--        tlogCJ = toJSON tlogC
+--        tlogP :: CRULog (Id Partner) = mkInsertLog p
+--        tlogPJ = toJSON tlogP
+--        tlogT :: CRULog (Id Tariff) = mkInsertLog t
+--        tlogTJ = toJSON tlogT
+--        persistenceLog :: [PersistenceLog] =[ TariffPL tlogT, PartnerPL tlogP, ContractPL tlogC, VersionPL tlogV, HistoryPL tlogH, WorkflowPL tlogW ]
+--        persistenceLogJ = toJSON persistenceLog
+--    putStrLn $ show  tlogWJ
+--    putStrLn $ show  tlogHJ
+--    putStrLn $ show  tlogVJ
+--    putStrLn $ show  tlogCJ
+--    putStrLn $ show  tlogPJ
+--    putStrLn $ show  tlogTJ
+--    v2 :: Version <- fetch $ key tlogV
+--    putStrLn $ show v2
+--    putStrLn "============================================="
+--    putStrLn $ show persistenceLog
+--    putStrLn "---------------------------------------------"
+--    putStrLn $ show persistenceLogJ
+--    putStrLn "============================================="
+--    wf <- wf |> set #progress persistenceLogJ |> updateRecord
+--    wf :: Workflow <- fetch $ get #id wf 
+--    let plogMB  = getPLOG wf
+--        plog = fromJust plogMB
+--    putStrLn "************************************************"
+--    putStrLn $ "SHOWING plog of " ++ show (get #id wf) ++ show plog
+--    putStrLn "************************************************"
+--    putStrLn "VOR  LOGLOGLOGLOGLOGLOGLOGLOGLOGLOGLOGLOGLOGLOGLOGLOG"
+--
+--    forEach plog \pl -> do
+--        putStrLn $ "Logged plog:" ++ show pl
+--        case pl of
+--            WorkflowPL cru -> commit cru
+--            HistoryPL cru -> commit cru
+--            VersionPL cru -> commit cru
+--            ContractPL cru -> commit cru
+--            PartnerPL cru -> commit cru
+--            TariffPL cru -> commit cru
+--        putStrLn "Logged nach Commit"
+--
+--    putStrLn "NACH LOGLOGLOGLOGLOGLOGLOGLOGLOGLOGLOGLOGLOGLOGLOGLOG"
 
