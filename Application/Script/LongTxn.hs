@@ -93,7 +93,11 @@ class (KnownSymbol (GetTableName rec), rec ~ GetModelByTableName (GetTableName r
         uptodate ::Workflow <- workflow |> set #progress progress |> updateRecord
         Log.info ("hier ist Workflow mit JSON " ++ (show (get #progress uptodate)))
         pure state 
- 
+    
+    getShadowed :: (WorkflowProgress ->  Maybe (StateKeys (Id rec))) -> WorkflowProgress -> Maybe (Integer,[Integer])
+    getShadowed accessor wfp = shadowed $ fromJust $ accessor wfp 
+    setShadowed :: (WorkflowProgress ->  Maybe (StateKeys (Id rec))) -> WorkflowProgress -> (Integer,[Integer]) -> WorkflowProgress
+
     mutateHistory :: (?modelContext::ModelContext, ?context::context, LoggingProvider context) => (WorkflowProgress ->  Maybe (StateKeys (Id rec))) -> Workflow -> rec -> IO rec
     mutateHistory accessor workflow state = do
         let wfprogress :: WorkflowProgress = fromJust $ getWfp workflow
@@ -128,7 +132,7 @@ class (KnownSymbol (GetTableName rec), rec ~ GetModelByTableName (GetTableName r
         shadowed :: [Version]  <- sqlQuery  q2 p2
         let shadowedIds :: [Integer] = map (getKey .(get #id)) shadowed  
         Log.info ( "queryVersionMutableValidfrom shadowed=" ++ (show shadowed ))
-        workflow :: Workflow <- setWfp workflow (setShadowed wfprogress (getKey versionId, shadowedIds)) |> updateRecord
+        workflow :: Workflow <- setWfp workflow (setShadowed (accessor) wfprogress (getKey versionId, shadowedIds)) |> updateRecord
         pure $ (fromJust $ head vs, shadowed)
             where getKey (Id key) = key
 
@@ -137,6 +141,9 @@ instance CanVersion Contract where
     getAccessor = (contract)
     mkPersistenceLogState :: CRULog (Id Contract) -> PersistenceLog
     mkPersistenceLogState cru = ContractPL cru
+    setShadowed :: (WorkflowProgress ->  Maybe (StateKeys (Id' "contracts"))) -> WorkflowProgress -> (Integer,[Integer]) -> WorkflowProgress
+    setShadowed accessor wfp shadow = let new :: StateKeys (Id' "contracts") = fromJust $ accessor wfp 
+        in wfp {contract = Just $ new { shadowed = Just shadow }}
     setWorkFlowState :: WorkflowProgress -> Maybe (StateKeys (Id' "contracts")) -> WorkflowProgress
     setWorkFlowState wfp s = wfp  {contract = s} 
 instance CanVersion Partner where
@@ -144,6 +151,9 @@ instance CanVersion Partner where
     getAccessor = (partner)
     mkPersistenceLogState :: CRULog (Id Partner) -> PersistenceLog
     mkPersistenceLogState cru = PartnerPL cru
+    setShadowed :: (WorkflowProgress ->  Maybe (StateKeys (Id' "partners"))) -> WorkflowProgress -> (Integer,[Integer]) -> WorkflowProgress
+    setShadowed accessor wfp shadow = let new :: StateKeys (Id' "partners") = fromJust $ accessor wfp 
+        in wfp {partner = Just $ new { shadowed = Just shadow }}
     setWorkFlowState :: WorkflowProgress ->Maybe (StateKeys (Id' "partners")) -> WorkflowProgress
     setWorkFlowState wfp s = wfp  {partner = s} 
 instance CanVersion Tariff where
@@ -151,6 +161,9 @@ instance CanVersion Tariff where
     getAccessor = (tariff)
     mkPersistenceLogState :: CRULog (Id Tariff) -> PersistenceLog
     mkPersistenceLogState cru = TariffPL cru
+    setShadowed :: (WorkflowProgress ->  Maybe (StateKeys (Id' "tariffs"))) -> WorkflowProgress -> (Integer,[Integer]) -> WorkflowProgress
+    setShadowed accessor wfp shadow = let new :: StateKeys (Id' "tariffs") = fromJust $ accessor wfp 
+        in wfp {tariff = Just $ new { shadowed = Just shadow }}
     setWorkFlowState :: WorkflowProgress ->Maybe (StateKeys (Id' "tariffs")) -> WorkflowProgress
     setWorkFlowState wfp s = wfp  {tariff = s} 
 
@@ -200,13 +213,6 @@ getWfp workflow  =  decode $ encode $ get #progress workflow
 
 setWfp :: Workflow -> WorkflowProgress -> Workflow
 setWfp wf wfp = wf |> set #progress ( fromJust $ decode $ encode wfp )
-
-
-getShadowed :: WorkflowProgress -> Maybe (Integer,[Integer])
-getShadowed (WorkflowProgress (Just (StateKeys h v c shadowed)) partner tariff plog) = shadowed
-
-setShadowed :: WorkflowProgress -> (Integer,[Integer]) -> WorkflowProgress
-setShadowed (WorkflowProgress (Just (StateKeys h v c sh)) partner tariff plog) shadowed = WorkflowProgress (Just (StateKeys h v c (Just shadowed))) partner tariff plog
 
 data CRULog a = Inserted  { key::a }| Updated { old::a , new :: a } deriving (Generic, Show,Read)
 instance (ToJSON a) => ToJSON (CRULog a)
