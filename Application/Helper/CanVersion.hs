@@ -24,7 +24,8 @@ today :: IO Day -- :: (year,month,day)
 today = getCurrentTime >>= return . utctDay
 
 
-class (KnownSymbol (GetTableName rec), rec ~ GetModelByTableName (GetTableName rec), PrimaryKey (GetTableName rec) ~ Integer, Record rec, CanCreate rec,Fetchable (QueryBuilder (GetTableName rec))  rec, FromRow rec,
+class (KnownSymbol (GetTableName rec), rec ~ GetModelByTableName (GetTableName rec), PrimaryKey (GetTableName rec) ~ Integer, Record rec,
+    CanCreate rec, CanUpdate rec, Fetchable (QueryBuilder (GetTableName rec))  rec, FromRow rec,
     HasField "id" rec (Id rec), Show (PrimaryKey (GetTableName rec)), HasField "refHistory" rec (Id History),SetField "refHistory" rec (Id History),
     HasField "refValidfromversion" rec (Id Version), SetField "refValidfromversion" rec (Id Version),
     HasField "refValidthruversion" rec (Maybe(Id Version)), SetField "refValidthruversion" rec (Maybe (Id Version)),
@@ -75,12 +76,12 @@ class (KnownSymbol (GetTableName rec), rec ~ GetModelByTableName (GetTableName r
                                 Log.info $ "commit version v: " ++ show v
                                 w <- workflow |> set #workflowStatus "committed" |> updateRecord
                                 Log.info $ "commit workflow w: " ++ show w
-                                sOld :: [Contract] <- query @ Contract |> filterWhere (#refHistory,Id h) |>
+                                sOld :: [rec] <- query @ rec |> filterWhere (#refHistory,Id h) |>
                                     filterWhereSql(#refValidfromversion,"<> " ++ encodeUtf8( show v)) |>
                                     filterWhere(#refValidthruversion,Nothing) |> fetch
                                 case head sOld of
                                     Just sOld -> do
-                                            sUpd :: Contract <- sOld |> set #refValidthruversion (Just (Id v)) |> updateRecord
+                                            sUpd :: rec <- sOld |> set #refValidthruversion (Just (Id v)) |> updateRecord
                                             Log.info $ "contract predecessor terminated" ++ show s
                                     Nothing -> Log.info ("no contract predecessor" ::String)
                                 case getShadowed accessor wfp of
