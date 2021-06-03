@@ -8,16 +8,17 @@ import Application.Helper.CanVersion
 import Application.Helper.WorkflowProgress
 import Application.Script.Prelude
 import IHP.Log as Log
+import Data.Maybe
 -- 
 run :: Script
 run = do
     usr :: User <- query @User |> fetchOne 
-    wfc ::Workflow <- newRecord |> set #refUser (get #id usr) |> set #historyType HistorytypeContract |> createRecord
-    wfp ::Workflow <- newRecord |> set #refUser (get #id usr) |> set #historyType HistorytypePartner |> createRecord
-    wft ::Workflow <- newRecord |> set #refUser (get #id usr) |> set #historyType HistorytypeTariff |> createRecord  
-    let c0 :: Contract = newRecord
-        p0 :: Partner = newRecord
-        t0 :: Tariff = newRecord
+    wfc ::Workflow <- newRecord |> set #refUser (get #id usr) |> set #historyType HistorytypeContract |> set #workflowType WftypeNew |> createRecord
+    wfp ::Workflow <- newRecord |> set #refUser (get #id usr) |> set #historyType HistorytypePartner |> set #workflowType WftypeNew |> createRecord
+    wft ::Workflow <- newRecord |> set #refUser (get #id usr) |> set #historyType HistorytypeTariff |> set #workflowType WftypeNew |> createRecord  
+    let c0 :: Contract = newRecord |> set #content "initial"
+        p0 :: Partner = newRecord |> set #content "initial"
+        t0 :: Tariff = newRecord |> set #content "initial"
     c::Contract <- createHistory contract wfc c0
     ch :: History <- fetch (get #refHistory c)
     cv :: Version <- fetch (get #refValidfromversion c)
@@ -89,6 +90,21 @@ run = do
     commitState tariff wftUpd
     
     Log.info ("NACH COMMIT TARIFF   TARIFF   TARIFF   TARIFF   TARIFF" ::String)
+
+    Log.info ("VOR  MUTATE CONTRACT CONTRACT CONTRACT CONTRACT CONTRACT" ::String)
+    wfcMUT0 ::Workflow <- newRecord |> set #refUser (get #id usr) |> set #historyType HistorytypeContract |> set #workflowType WftypeUpdate  |> createRecord
+    let h :: (Id History) = get #refHistory c
+        wfp :: WorkflowProgress = WorkflowProgress (Just (stateKeysDefault { history = Just $ fromId h } )) Nothing Nothing []
+        wfpJ :: Value = fromJust $ decode $ encode $ wfp
+    today <- today 
+    wfcMUT <- wfcMUT0 |> set #progress wfpJ |> set #validfrom today |> updateRecord
+    mutable <- queryMutableState contract wfcMUT
+    Log.info $ "MUTABLE=" ++ show mutable
+    let cMUT0 = fst mutable |> set #content "mutated"
+    cMUT :: Contract <- mutateHistory contract wfcMUT cMUT0
+    commitState contract wfcMUT
+
+    Log.info ("NACH MUTATE CONTRACT CONTRACT CONTRACT CONTRACT CONTRACT" ::String)
 
 --    forEach (persistenceLogC ++ persistenceLogP ++ persistenceLogT) \pl -> do
 --        Log.info $ "Logged plog:" ++ show pl
