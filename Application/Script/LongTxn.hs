@@ -72,16 +72,33 @@ run = do
     Log.info $ show persistenceLogTJ
     Log.info ("============================================="::String)
 
-    Log.info ("NACH LOGLOGLOGLOGLOGLOGLOGLOGLOGLOGLOGLOGLOGLOGLOGLOG" ::String)
-    forEach (persistenceLogC ++ persistenceLogP ++ persistenceLogT) \pl -> do
-        Log.info $ "Logged plog:" ++ show pl
-        case pl of
-            WorkflowPL cru -> commit cru
-            HistoryPL cru -> commit cru
-            VersionPL cru -> commit cru
-            ContractPL cru -> commit cru
-            PartnerPL cru -> commit cru
-            TariffPL cru -> commit cru
-        Log.info ("Logged nach Commit" :: String)
+    Log.info ("VOR  COMMIT CONTRACT CONTRACT CONTRACT CONTRACT CONTRACT" ::String)
+    wfcUpd <- fetch (get #id wfc)
+    commitState contract wfcUpd
 
-    Log.info (")NACH LOGLOGLOGLOGLOGLOGLOGLOGLOGLOGLOGLOGLOGLOGLOGLOG" :: String)
+    Log.info ("NACH COMMIT CONTRACT CONTRACT CONTRACT CONTRACT CONTRACT" ::String)
+
+    Log.info ("VOR  COMMIT PARTNER  PARTNER  PARTNER  PARTNER  PARTNER" ::String)
+    wfpUpd <- fetch (get #id wfp)
+    commitState partner wfpUpd
+
+    Log.info ("NACH COMMIT PARTNER  PARTNER  PARTNER  PARTNER  PARTNER" ::String)
+
+    Log.info ("VOR  COMMIT TARIFF   TARIFF   TARIFF   TARIFF   TARIFF" ::String)
+    wftUpd <- fetch (get #id wft)
+    commitState tariff wftUpd
+    
+    Log.info ("NACH COMMIT TARIFF   TARIFF   TARIFF   TARIFF   TARIFF" ::String)
+
+--    forEach (persistenceLogC ++ persistenceLogP ++ persistenceLogT) \pl -> do
+--        Log.info $ "Logged plog:" ++ show pl
+--        case pl of
+--            WorkflowPL cru -> commit cru
+--            HistoryPL cru -> commit cru
+--            VersionPL cru -> commit cru
+--            ContractPL cru -> commitState cru
+--            PartnerPL cru -> commit cru
+--            TariffPL cru -> commit cru
+--        Log.info ("Logged nach Commit" :: String)
+--
+
