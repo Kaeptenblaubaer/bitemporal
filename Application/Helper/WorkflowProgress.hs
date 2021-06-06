@@ -17,9 +17,6 @@ import Database.PostgreSQL.Simple ( Query, ToRow )
 import Data.Text.Encoding ( encodeUtf8 )
 import Data.Text.Read as T (decimal)
 
-today :: IO Day -- :: (year,month,day)
-today = getCurrentTime >>= return . utctDay
-
 getCurrentWorkflow :: (?context::ControllerContext, ?modelContext::ModelContext) => IO Workflow
 getCurrentWorkflow  = do
     id <- getSessionUUID "workflowId"

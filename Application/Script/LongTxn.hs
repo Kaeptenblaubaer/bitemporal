@@ -97,14 +97,18 @@ run = do
         wfp :: WorkflowProgress = WorkflowProgress (Just (stateKeysDefault { history = Just $ fromId h } )) Nothing Nothing []
         wfpJ :: Value = fromJust $ decode $ encode $ wfp
     today <- today 
-    wfcMUT <- wfcMUT0 |> set #progress wfpJ |> set #validfrom today |> updateRecord
-    mutable <- queryMutableState contract wfcMUT
+    wfcMUT1 <- wfcMUT0 |> set #progress wfpJ |> set #validfrom today |> updateRecord
+    mutable <- queryMutableState contract wfcMUT1
     Log.info $ "MUTABLE=" ++ show mutable
     let cMUT0 = fst mutable |> set #content "mutated"
-    cMUT :: Contract <- mutateHistory contract wfcMUT cMUT0
+    cMUT :: Contract <- mutateHistory contract wfcMUT1 cMUT0
+    wfcMUT :: Workflow <- fetch (get #id wfcMUT1)
+    Log.info ("NACH MUTATE CONTRACT CONTRACT CONTRACT CONTRACT CONTRACT" ::String)
+    Log.info $ "Workflow für commit:" ++ show wfcMUT
+
     commitState contract wfcMUT
 
-    Log.info ("NACH MUTATE CONTRACT CONTRACT CONTRACT CONTRACT CONTRACT" ::String)
+    Log.info ("NACH COMMITMUTATATION CONTRACT CONTRACT CONTRACT CONTRACT CONTRACT" ::String)
 
 --    forEach (persistenceLogC ++ persistenceLogP ++ persistenceLogT) \pl -> do
 --        Log.info $ "Logged plog:" ++ show pl

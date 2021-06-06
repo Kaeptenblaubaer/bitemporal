@@ -25,8 +25,7 @@ CREATE TABLE workflows (
     progress JSONB NOT NULL,
     validfrom DATE NOT NULL,
     workflow_status TEXT DEFAULT 'initial' NOT NULL,
-    createdat TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
-    progressb BYTEA NOT NULL
+    createdat TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL
 );
 CREATE TABLE histories (
     id UUID DEFAULT uuid_generate_v4() PRIMARY KEY NOT NULL,

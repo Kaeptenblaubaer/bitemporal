@@ -43,7 +43,7 @@ class (KnownSymbol (GetTableName rec), rec ~ GetModelByTableName (GetTableName r
     getWorkFlowState wfp = getAccessor wfp
     setWorkFlowState :: WorkflowProgress -> Maybe (StateKeys (Id rec)) -> WorkflowProgress
     updateWfpV :: (WorkflowProgress ->  Maybe (StateKeys (Id rec))) -> WorkflowProgress -> Integer -> Id rec -> Value
-    updateWfpV accessor wfp v s = fromJust $ decode $ encode $ setWorkFlowState wfp (Just (stateKeysDefault { version= Just v, state= Just s } ))
+    updateWfpV accessor wfp v s = fromJust $ decode $ encode $ setWorkFlowState wfp (Just ((fromJust $ accessor wfp) { version= Just v, state= Just s } ))
     getStatehistoryIdMB :: (WorkflowProgress ->  Maybe (StateKeys (Id rec))) -> WorkflowProgress -> Maybe UUID
     getStatehistoryIdMB accessor wfp = maybe Nothing history (accessor wfp)
     getStateVersionIdMB :: (WorkflowProgress ->  Maybe (StateKeys (Id rec))) ->WorkflowProgress -> Maybe Integer
