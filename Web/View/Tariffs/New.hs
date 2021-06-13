@@ -1,7 +1,7 @@
 module Web.View.Tariffs.New where
 import Web.View.Prelude
 
-data NewView = NewView { workflowId :: Id Workflow, tariff :: Tariff }
+data NewView = NewView { workflowId :: Id Workflow, tariffNew :: Tariff }
 
 instance View NewView where
     html NewView { .. } = [hsx|
@@ -13,7 +13,7 @@ instance View NewView where
             </ol>
         </nav>
         <h1>New Tariff</h1>
-        {renderForm tariff}
+        {renderForm tariffNew}
     |]
 
 renderForm :: Tariff -> Html

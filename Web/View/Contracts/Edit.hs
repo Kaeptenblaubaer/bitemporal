@@ -2,7 +2,7 @@ module Web.View.Contracts.Edit where
 import Web.View.Prelude
 import Web.Controller.Workflows
 
-data EditView = EditView { workflowId :: Id Workflow, contract :: Contract }
+data EditView = EditView { workflowId :: Id Workflow, contractUpd :: Contract }
 
 instance View EditView where
     html EditView { .. } = [hsx|
@@ -14,7 +14,7 @@ instance View EditView where
             </ol>
         </nav>
         <h1>Edit Contract</h1>
-        {renderForm contract}
+        {renderForm contractUpd}
     |]
 
 renderForm :: Contract -> Html

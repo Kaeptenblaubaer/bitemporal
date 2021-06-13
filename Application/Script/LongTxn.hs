@@ -104,9 +104,12 @@ run = do
     cMUT :: Contract <- mutateHistory contract wfcMUT1 cMUT0
     wfcMUT :: Workflow <- fetch (get #id wfcMUT1)
     Log.info ("NACH MUTATE CONTRACT CONTRACT CONTRACT CONTRACT CONTRACT" ::String)
-    Log.info $ "Workflow für commit:" ++ show wfcMUT
+    Log.info $ "Workflow für commit:" ++ show  wfcMUT
 
-    commitState contract wfcMUT
+    result <- commitState contract wfcMUT 
+    case result of
+        Left msg -> Log.info $ "SUCCESS:"++ msg
+        Right msg -> Log.info $ "ERROR:" ++ msg
 
     Log.info ("NACH COMMITMUTATATION CONTRACT CONTRACT CONTRACT CONTRACT CONTRACT" ::String)
 

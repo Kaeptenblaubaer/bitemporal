@@ -34,6 +34,7 @@ stylesheets = [hsx|
         <link rel="stylesheet" href="/vendor/bootstrap.min.css"/>
         <link rel="stylesheet" href="/vendor/flatpickr.min.css"/>
         <link rel="stylesheet" href="/app.css"/>
+        <link rel="stylesheet" href="/vendor/jsoneditor.css"/>
     |]
 
 scripts :: Html
@@ -47,6 +48,8 @@ scripts = [hsx|
         <script src="/helpers.js"></script>
         <script src="/vendor/morphdom-umd.min.js"></script>
         <script src="/ihp-auto-refresh.js"></script>
+        <script src="/vendor/jsoneditor.js"></script>
+        
     |]
 
 metaTags :: Html

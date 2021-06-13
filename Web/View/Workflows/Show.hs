@@ -6,10 +6,10 @@ import Data.Maybe ( fromJust )
 
 data ShowView = ShowView { workflow :: Workflow, stateHistoryIdMB :: Maybe UUID, stateVersionIdMB :: Maybe Integer , stateIdMB :: Maybe Integer}
 
-stateHrefMB :: Maybe Integer -> Html
-stateHrefMB stateIdMB = case stateIdMB of 
-  Nothing -> [hsx| <li class="breadcrumb-item"> No Contract here </li> |]
-  Just stateId -> [hsx| <li class="breadcrumb-item"><a href={ShowContractAction (Id stateId)}>Contract</a></li> |]
+stateHrefMB :: Maybe Integer -> HistoryType -> Html
+stateHrefMB stateIdMB histoType = case stateIdMB of 
+  Nothing -> [hsx| <li class="breadcrumb-item"> No state here </li> |]
+  Just stateId -> [hsx| <li class="breadcrumb-item"><a href={ShowContractAction (Id stateId)}>{histoType}</a></li> |]
 
 
 historyHrefMB :: Maybe UUID -> Html
@@ -24,14 +24,14 @@ instance View ShowView where
             <ol class="breadcrumb">
                 <li class="breadcrumb-item"><a href={WorkflowsAction}>Workflows</a></li>
                 { historyHrefMB stateHistoryIdMB}                 
-                { stateHrefMB stateIdMB}                 
+                { stateHrefMB stateIdMB $ get #historyType workflow }                 
                 <li class="breadcrumb-item active">Show Workflow</li>
             </ol>
         </nav> 
         <h1>Show Workflow</h1>
         <p>{workflow}</p>
         <style type="text/css">
-            #jsoneditor {
+            jsoneditor {
               width: 500px;
               height: 500px;   
             }

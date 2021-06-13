@@ -5,7 +5,6 @@ import Web.View.Tariffs.Index
 import Web.View.Tariffs.New
 import Web.View.Tariffs.Edit
 import Web.View.Tariffs.Show
-import Application.Helper.Controller;
 import Data.Maybe
 import qualified IHP.Log as Log
 import IHP.Log.Types
@@ -19,7 +18,7 @@ instance Controller TariffsController where
     action NewTariffAction = do
         workflow::Workflow <- getCurrentWorkflow
         let workflowId = get #id workflow
-        let tariff = newRecord
+        let tariffNew = newRecord
         render NewView { .. }
 
     action ShowTariffAction { tariffId } = do
@@ -48,18 +47,18 @@ instance Controller TariffsController where
                     redirectTo EditTariffAction { .. }
 
     action CreateTariffAction = do
-        Log.info  "Enter createHistory workflow=" 
+        Log.info  ("Enter createHistory workflow=" ::String)
         workflowId <- getCurrentWorkflowId
         workflow :: Workflow <- fetch workflowId
-        let tariff = newRecord @Tariff
-        tariff
+        let tariffNew = newRecord @Tariff
+        tariffNew
             |> buildTariff
             |> ifValid \case
-                Left tariff -> render NewView { .. } 
-                Right tariff -> do
-                    tariff :: Tariff <- createHistory workflow tariff 
+                Left tariffNew -> render NewView { .. } 
+                Right tariffNew -> do
+                    tariffCreated :: Tariff <- createHistory tariff workflow tariffNew 
                     setSuccessMessage "Tariff created"
-                    let tariffId = get #id tariff
+                    let tariffId = get #id tariffCreated
                     redirectTo EditTariffAction {..}
 
     action DeleteTariffAction { tariffId } = do

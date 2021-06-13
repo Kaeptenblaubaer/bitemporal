@@ -1,5 +1,5 @@
 {
     "nixEnvSelector.nixShellConfig": "/home/mf/baba/default.nix",
-    "terminal.integrated.cwd": "${workspaceFolder}",
+    "terminal.integrated.cwd": "/home/mf/baba",
     "nixEnvSelector.nixFile": "${workspaceRoot}/default.nix"
 }

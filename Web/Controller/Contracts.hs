@@ -5,7 +5,7 @@ import Web.View.Contracts.Index
 import Web.View.Contracts.New
 import Web.View.Contracts.Edit
 import Web.View.Contracts.Show
-import Application.Helper.Controller;
+import Application.Helper.CanVersion;
 import Data.Maybe
 import qualified IHP.Log as Log
 import IHP.Log.Types
@@ -20,7 +20,7 @@ instance Controller ContractsController where
     action NewContractAction = do
         workflow::Workflow <- getCurrentWorkflow
         let workflowId = get #id workflow
-        let contract ::Contract = newRecord 
+        let contractNew ::Contract = newRecord 
         render NewView { .. }
 
     action ShowContractAction { contractId } = do
@@ -31,36 +31,36 @@ instance Controller ContractsController where
     action EditContractAction { contractId } = do
         workflow::Workflow <- getCurrentWorkflow
         let workflowId = get #id workflow
-        contract<- fetch contractId
+        contractUpd<- fetch contractId
         render EditView { workflowId, .. }
 
     action UpdateContractAction { contractId } = do 
         workflowId <- getCurrentWorkflowId
         workflow <- fetch workflowId 
-        contract <- fetch contractId
-        contract
+        contractUpd <- fetch contractId
+        contractUpd
             |> buildContract
             |> ifValid \case
-                Left contract -> render EditView { workflowId,  .. }
-                Right contract -> do
-                    contract <- mutateHistory workflow contract
+                Left contractUpd -> render EditView { workflowId,  .. }
+                Right contractUpd -> do
+                    contractPers <- mutateHistory contract workflow contractUpd
                     setSuccessMessage "Contract updated"
-                    let contractId = get #id contract
+                    let contractId = get #id contractPers
                     redirectTo EditContractAction {..}
 
     action CreateContractAction = do
-        Log.info  "Enter createHistory workflow=" 
+        Log.info  ("Enter createHistory workflow=" :: String)
         workflowId <- getCurrentWorkflowId
         workflow :: Workflow <- fetch workflowId
-        let contract = newRecord @Contract
-        contract
+        let contractNew = newRecord @Contract
+        contractNew
             |> buildContract
             |> ifValid \case
-                Left contract -> render NewView { workflowId, .. } 
-                Right contract -> do
-                    contract :: Contract <- createHistory workflow contract 
+                Left contractNew -> render NewView { workflowId, .. } 
+                Right contractNew -> do
+                    contractCreated :: Contract <- createHistory contract workflow contractNew
                     setSuccessMessage "Contract created"
-                    let contractId = get #id contract
+                    let contractId = get #id contractCreated
                     redirectTo EditContractAction {..}
 
     action DeleteContractAction { contractId } = do

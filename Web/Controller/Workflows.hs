@@ -6,7 +6,7 @@ import Web.View.Workflows.New
 import Web.View.Workflows.Edit
 import Web.View.Workflows.Show
 import Web.Controller.Histories
-import Application.Helper.Controller (createHistory, getKey, queryMutableState, today )
+import Application.Helper.CanVersion (createHistory, getKey, queryMutableState, today )
 import Data.Maybe ( fromJust )
 import Data.ByteString.Lazy as BSL (ByteString,fromStrict)
 import Data.Text.Encoding(encodeUtf8)
@@ -32,9 +32,11 @@ instance Controller WorkflowsController where
         let historyIdMB = paramOrNothing @UUID "historyId"
         case historyIdMB of
             Nothing -> do
-                Log.info "New Creation Workflow"
-                let workflow = newRecord |> set #refUser (get #id user) |> set #validfrom today |>
-                        set #workflowType WftypeNew
+                Log.info ("New Creation Workflow" :: String)
+                let initialProgress = WorkflowProgress Nothing Nothing Nothing []
+                    initialProgressV = fromJust $ decode $ encode initialProgress
+                    workflow :: Workflow = newRecord |> set #refUser (get #id user) |> set #validfrom today |>
+                        set #workflowType WftypeNew |> set #progress initialProgressV
                 setModal NewView { .. }
             Just historyId ->  do
                 Log.info $ "New Mutation Workflow for History:" ++ show historyId
@@ -54,23 +56,35 @@ instance Controller WorkflowsController where
                     Just h -> do
                         Log.info $ "History will be locked: " ++ show historyId
                         let hType = get #historyType h
-                            initialProgress :: Value = initialWfpV hType historyId
+                            initialProgress :: Value = case hType of
+                                HistorytypeContract -> initialWfpV contract historyId 
+                                HistorytypePartner ->  initialWfpV partner historyId 
+                                HistorytypeTariff ->  initialWfpV tariff historyId 
                             workflow = newRecord |> set #refUser (get #id user) |> set #validfrom today |> set #workflowType WftypeUpdate |>
                                 set #historyType hType |> set #progress initialProgress
                         setModal NewView { .. }
         jumpToAction WorkflowsAction
 
     action ShowWorkflowAction { workflowId } = do
-        workflow <- fetch workflowId
+        workflow :: Workflow <- fetch workflowId
         setSession "workflowId" (show workflowId)
         Log.info $ "Show Workflow. Set Session workflowId= " ++ show workflowId
         let histoType = get #historyType workflow
         Log.info $ "HistoryType= " ++ show histoType
         let wfp = fromJust $ getWfp workflow
-            stateHistoryIdMB = getStatehistoryIdMB wfp histoType
-            stateVersionIdMB = getStateVersionIdMB wfp histoType
-            stateIdMB = getStateIdMB wfp histoType
-        render ShowView { .. }
+        case histoType of
+            HistorytypeContract -> renderShowView contract workflow
+            HistorytypePartner -> renderShowView partner workflow
+            HistorytypeTariff -> renderShowView tariff workflow
+        where renderShowView accessor workflow = do
+                let wfp = fromJust $ getWfp workflow
+                    stateHistoryIdMB = getStatehistoryIdMB accessor wfp 
+                    stateVersionIdMB = getStateVersionIdMB accessor wfp 
+                    stateIdMB = case getStateIdMB accessor wfp of
+                        Nothing -> Nothing
+                        Just (Id key) -> Just key
+                render ShowView { .. }
+
 
     action EditWorkflowAction { workflowId } = do
         workflow <- fetch workflowId
@@ -88,7 +102,7 @@ instance Controller WorkflowsController where
                     redirectTo EditWorkflowAction { .. }
 
     action CreateWorkflowAction = do
-        Log.info $ "creating Workflow"
+        Log.info ("creating Workflow":: String)
         let workflow = newRecord @Workflow
         workflow
             |> buildWorkflow
@@ -96,11 +110,10 @@ instance Controller WorkflowsController where
                 Left workflow -> render NewView { .. }
                 Right workflow -> do
                     workflow <- workflow |> createRecord 
-                    workflow <- workflow |> set #progress (fromJust $ decode $ encode $ WorkflowProgress Nothing Nothing Nothing ) |> updateRecord 
                     setCurrentWorkflowId workflow
                     Log.info $ "wfnew sessionset =" ++ show workflow
                     setSuccessMessage "Workflow created"
-                    Log.info $ "redirecting to NextWorkflowAction " ++ (show $ get #id workflow)
+                    Log.info $ "redirecting to NextWorkflowAction " ++ show (get #id workflow)
                     redirectTo $ NextWorkflowAction $ get #id workflow
 
     action DeleteWorkflowAction { workflowId } = do
@@ -115,7 +128,16 @@ instance Controller WorkflowsController where
         putStrLn ("NextWF wf="++ show workflow)
         case getWfp workflow of
             Just wfp ->case get #workflowType workflow of
-                WftypeNew -> redirectCreateState (get #historyType workflow) $getStateIdMB wfp HistorytypeContract
+                WftypeNew -> case get #historyType workflow of
+                    HistorytypeContract -> case getStateIdMB contract wfp of
+                        Nothing -> redirectTo NewContractAction 
+                        Just sid -> redirectTo $ EditContractAction sid
+                    HistorytypePartner -> case getStateIdMB partner wfp of
+                        Nothing -> redirectTo NewPartnerAction 
+                        Just sid -> redirectTo $ EditPartnerAction sid
+                    HistorytypeTariff -> case getStateIdMB tariff wfp of
+                        Nothing -> redirectTo NewTariffAction 
+                        Just sid -> redirectTo $ EditTariffAction sid
                 WftypeUpdate -> redirectUpdateState workflow
             Nothing -> do
                 setErrorMessage $ "SHOULDN'T: progress is null workflowId= " ++ show workflowId
@@ -125,52 +147,15 @@ instance Controller WorkflowsController where
         workflow <- getCurrentWorkflow
         let workflowId = get #id workflow
         Log.info $ "ToCOmmitWF wf="++ show workflowId
-        let wfpMB = getWfp workflow
-            histoType = get #historyType workflow
-        case wfpMB of
-            Just wfp -> do
-                case getStatehistoryIdMB wfp histoType of
-                    Just h -> case getStateVersionIdMB wfp histoType of
-                        Just v -> case getStateIdMB wfp histoType of
-                            Just s -> withTransaction do 
-                                Log.info $ "committing h:" ++ show h
-                                hUnlocked :: History <- fetch (Id h)
-                                hUnlocked |> set #refOwnedByWorkflow Nothing |> updateRecord
-                                Log.info $ "Unlocked h:" ++ show h
-                                setSuccessMessage $ "version=" ++ show v
-                                newVersion :: Version <- fetch (Id v)
-                                newVersion |>set #committed True |> updateRecord
-                                Log.info $ "commit version v: " ++ show v
-                                w <- workflow |> set #workflowStatus "committed" |> updateRecord
-                                Log.info $ "commit workflow w: " ++ show w
-                                sOld :: [Contract] <- query @ Contract |> filterWhere (#refHistory,Id h) |>
-                                    filterWhereSql(#refValidfromversion,"<> " ++ encodeUtf8( show v)) |>
-                                    filterWhere(#refValidthruversion,Nothing) |> fetch
-                                case head sOld of
-                                    Just sOld -> do
-                                            sUpd :: Contract <- sOld |> set #refValidthruversion (Just (Id v)) |> updateRecord
-                                            Log.info $ "contract predecessor terminated" ++ show s
-                                    Nothing -> Log.info "no contract predecessor"
-                                case getShadowed wfp of
-                                    Nothing -> Log.info "No version"
-                                    Just (shadow,shadowed) -> do
-                                        updated :: [Version]<- sqlQuery "update versions v set ref_shadowedby = ? where id in ? returning * " (v, In shadowed)
-                                        forEach updated (\v -> Log.info $ "updated" ++ show v)
-                                commitTransaction
-                                Log.info "commit successful"
-                                redirectTo $ ShowWorkflowAction workflowId
-                            Nothing -> do
-                                setErrorMessage $ "cannot commit: state is null h=" ++ show h ++ "v=" ++ show v
-                                redirectTo $ ShowWorkflowAction workflowId
-                        Nothing -> do
-                            setErrorMessage $ "cannot commit: version is null h=" ++ show h
-                            redirectTo $ ShowWorkflowAction workflowId
-                    Nothing -> do
-                        setErrorMessage "cannot commit: history is null"
-                        redirectTo $ ShowWorkflowAction workflowId
-            Nothing -> do
-                setErrorMessage "SHOULDN'T: empty progress data"
-                redirectTo $ ShowWorkflowAction workflowId
+        result <- case get #historyType  workflow of
+            HistorytypeContract -> commitState contract workflow
+            HistorytypePartner -> commitState contract workflow
+            HistorytypeTariff -> commitState contract workflow
+        case result of
+            Left msg -> setSuccessMessage msg
+            Right msg -> setErrorMessage msg
+        redirectTo $ ShowWorkflowAction workflowId
+
 
 
     action RollbackWorkflowAction = do
@@ -193,47 +178,38 @@ buildWorkflow workflow = workflow
     |> fill @["refUser","historyType","workflowType","validfrom"] |> set #progress val
         where val =fromJust $ decode $ fromStrict $ param @Web.Controller.Prelude.ByteString "progress"
 
-redirectCreateState :: (?context::ControllerContext) => HistoryType -> Maybe Integer -> IO ()
-redirectCreateState HistorytypeContract Nothing  = redirectTo NewContractAction 
-redirectCreateState HistorytypeContract (Just sid)  = redirectTo $ EditContractAction $ Id sid
-redirectCreateState HistorytypePartner Nothing  = redirectTo NewPartnerAction 
-redirectCreateState HistorytypePartner (Just sid)  = redirectTo $ EditPartnerAction $ Id sid
-redirectCreateState HistorytypeTariff Nothing  = redirectTo NewTariffAction 
-redirectCreateState HistorytypeTariff (Just sid)  = redirectTo $ EditTariffAction $ Id sid
 
-queryMutableStateKey :: (?context::context, ?modelContext::ModelContext, LoggingProvider context) => Workflow' (Id' "users") (QueryBuilder "histories") -> IO (Integer, [Version])
-queryMutableStateKey workflow =  do
-    case get #historyType workflow of
-        HistorytypeContract -> do 
-                mutable :: (Contract,[Version]) <- queryMutableState workflow
-                pure ( (getKey $ fst mutable, snd mutable))
-        HistorytypePartner -> do 
-                mutable :: (Partner,[Version]) <- queryMutableState workflow
-                pure ( (getKey $ fst mutable, snd mutable))
-        HistorytypeTariff -> do 
-                mutable :: (Tariff,[Version]) <- queryMutableState workflow
-                pure ( (getKey $ fst mutable, snd mutable))
 
 redirectUpdateState :: (?context::ControllerContext, ?modelContext::ModelContext) => Workflow -> IO ()
 redirectUpdateState workflow = do
-    let histoType = get #historyType workflow 
-    case getWorkFlowState (fromJust $ getWfp workflow) histoType of
-            Just (StateKeys (Just hid) Nothing Nothing Nothing) -> do
-                mutable :: (Integer,[Version]) <- queryMutableStateKey workflow
-                let msg :: Text = case snd mutable of
-                        [] -> "not retrospective"
-                        shadowed -> "the following versions will be shadowed: " ++ foldr (((++)) . (\v -> show $ get #validfrom v)) "" shadowed
-                setSuccessMessage msg
-                redirectEditState histoType (fst mutable)
-            Just (StateKeys _ _ (Just sid) _) ->
-                redirectEditState histoType sid
-            _ -> do 
-                setErrorMessage "SHOULDN'T: history and state ids are null"
-                redirectTo WorkflowsAction
-        
+    let histoType = get #historyType workflow
+    updateState <- case histoType of
+            HistorytypeContract -> getOrCreateStateIdForUpdate contract workflow
+            HistorytypePartner -> getOrCreateStateIdForUpdate contract workflow
+            HistorytypeTariff -> getOrCreateStateIdForUpdate contract workflow
+    case updateState of
+        Left (msg, key) -> do
+            setSuccessMessage msg
+            redirectEditState histoType key
+        Right msg -> do 
+            setErrorMessage "SHOULDN'T: history and state ids are null"
+            redirectTo WorkflowsAction
 
+getOrCreateStateIdForUpdate :: (?context::ControllerContext, ?modelContext::ModelContext, CanVersion rec) => (WorkflowProgress ->  Maybe (StateKeys (Id rec))) ->  Workflow -> IO (Either (Text,Integer) Text)
+getOrCreateStateIdForUpdate accessor workflow = do
+    case getStateIdMB accessor $ fromJust $ getWfp workflow of
+        Nothing -> do
+            mutable :: (rec,[Version]) <- queryMutableState accessor workflow
+            let sid = getKey $ fst mutable
+                msg :: Text = case snd mutable of
+                            [] -> "not retrospective"
+                            shadowed -> "the following versions will be shadowed: " ++ foldr ((++) . show . get #validfrom ) "" shadowed
+            pure $ Left (msg, sid)
+        Just sid -> pure $ Left ( "Version exists"::Text, fromId sid)
+        
+    
 
 redirectEditState :: (?context::ControllerContext) => HistoryType -> Integer -> IO ()
 redirectEditState HistorytypeContract sid = redirectTo $ EditContractAction $ Id sid
 redirectEditState HistorytypePartner sid = redirectTo $ EditPartnerAction $ Id sid
-redirectEditState HistorytypeContract sid = redirectTo $ EditTariffAction $ Id sid
+redirectEditState HistorytypeTariff sid = redirectTo $ EditTariffAction $ Id sid

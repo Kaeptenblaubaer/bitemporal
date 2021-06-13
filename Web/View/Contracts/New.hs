@@ -1,6 +1,6 @@
 module Web.View.Contracts.New where
 import Web.View.Prelude
-data NewView = NewView { workflowId :: Id Workflow, contract :: Contract }
+data NewView = NewView { workflowId :: Id Workflow, contractNew :: Contract }
 
 instance View NewView where
     html NewView { .. } = [hsx|
@@ -12,7 +12,7 @@ instance View NewView where
             </ol>
         </nav>
         <h1>New Contract</h1>
-        {renderForm contract }
+        {renderForm contractNew }
  
     |]
 
