@@ -34,15 +34,19 @@ instance Controller ContractsController where
         contractUpd<- fetch contractId
         render EditView { workflowId, .. }
 
-    action UpdateContractAction { contractId } = do 
+    action UpdateContractAction { contractId } = do
+        Log.info ("UpdateContractAction" ::String)
         workflowId <- getCurrentWorkflowId
         workflow <- fetch workflowId 
         contractUpd <- fetch contractId
         contractUpd
             |> buildContract
             |> ifValid \case
-                Left contractUpd -> render EditView { workflowId,  .. }
+                Left contractUpd -> do
+                    Log.info ("UpdateContract Error"::String)
+                    render EditView { workflowId,  .. }
                 Right contractUpd -> do
+                    Log.info ("UpdateContract Success"::String)
                     contractPers <- mutateHistory contract workflow contractUpd
                     setSuccessMessage "Contract updated"
                     let contractId = get #id contractPers
@@ -56,8 +60,11 @@ instance Controller ContractsController where
         contractNew
             |> buildContract
             |> ifValid \case
-                Left contractNew -> render NewView { workflowId, .. } 
+                Left contractNew -> do
+                    Log.info ("CreateContract Error"::String)
+                    render NewView { workflowId, .. } 
                 Right contractNew -> do
+                    Log.info ("CreateContract Success"::String)
                     contractCreated :: Contract <- createHistory contract workflow contractNew
                     setSuccessMessage "Contract created"
                     let contractId = get #id contractCreated

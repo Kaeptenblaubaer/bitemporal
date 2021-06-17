@@ -24,12 +24,11 @@ today :: IO Day -- :: (year,month,day)
 today = getCurrentTime >>= return . utctDay
 
 
-class (KnownSymbol (GetTableName rec), rec ~ GetModelByTableName (GetTableName rec), PrimaryKey (GetTableName rec) ~ Integer, Record rec,
+class (Show rec, KnownSymbol (GetTableName rec), rec ~ GetModelByTableName (GetTableName rec), PrimaryKey (GetTableName rec) ~ Integer, Record rec,
     CanCreate rec, CanUpdate rec, Fetchable (QueryBuilder (GetTableName rec))  rec, FromRow rec,
     HasField "id" rec (Id rec), Show (PrimaryKey (GetTableName rec)), HasField "refHistory" rec (Id History),SetField "refHistory" rec (Id History),
     HasField "refValidfromversion" rec (Id Version), SetField "refValidfromversion" rec (Id Version),
     HasField "refValidthruversion" rec (Maybe(Id Version)), SetField "refValidthruversion" rec (Maybe (Id Version)),
-
     HasField "content" rec Text, SetField "content" rec Text, HasTxnLog rec) => CanVersion rec 
     where
 
@@ -45,8 +44,7 @@ class (KnownSymbol (GetTableName rec), rec ~ GetModelByTableName (GetTableName r
     updateWfpV :: (WorkflowProgress ->  Maybe (StateKeys (Id rec))) -> WorkflowProgress -> UUID -> Integer -> Id rec -> Value
     updateWfpV accessor wfp h v s = fromJust $ decode $ encode $ setWorkFlowState wfp (Just ((fromJust $ accessor wfp) { history= Just h, version= Just v, state= Just s } ))
     initialWfpV:: (WorkflowProgress ->  Maybe (StateKeys (Id rec))) -> UUID -> Value
-    initialWfpV accessor h = fromJust $ decode $ encode $ setWorkFlowState wfp (Just ((fromJust $ accessor wfp) { history= Just h} ))
-        where wfp = WorkflowProgress Nothing Nothing Nothing []
+    initialWfpV accessor h = fromJust $ decode $ encode $ setWorkFlowState workflowProgressDefault (Just ((fromJust $ accessor workflowProgressDefault) { history= Just h} ))
     getStatehistoryIdMB :: (WorkflowProgress ->  Maybe (StateKeys (Id rec))) -> WorkflowProgress -> Maybe UUID
     getStatehistoryIdMB accessor wfp = history =<< accessor wfp
     getStateVersionIdMB :: (WorkflowProgress ->  Maybe (StateKeys (Id rec))) ->WorkflowProgress -> Maybe Integer
@@ -136,8 +134,11 @@ class (KnownSymbol (GetTableName rec), rec ~ GetModelByTableName (GetTableName r
     mutateHistory accessor workflow state = do
         let wfprogress :: WorkflowProgress = fromJust $ getWfp workflow
         let versionIdMB = getStateVersionIdMB accessor wfprogress
+        Log.info $ "mutateHistory Update histoType/wfprogress/versionid" ++ show (get #historyType workflow) ++ show wfprogress ++ "/" ++ show versionIdMB
         case versionIdMB of
-            Just v -> pure state
+            Just v -> do
+                Log.info ("mutateHistory Update existing Version" :: String)
+                pure state
             Nothing -> do
                 Log.info ("mutateHistory Update new Version" :: String)
                 let validfrom = tshow $ get #validfrom workflow
@@ -146,7 +147,8 @@ class (KnownSymbol (GetTableName rec), rec ~ GetModelByTableName (GetTableName r
                 newState :: rec <- newRecord |> set #refHistory historyId |> set #refValidfromversion (get #id version) |>
                     set #content (get #content state) |> createRecord
                 let wfpNew :: Value = updateWfpV accessor wfprogress (fromId historyId) (fromId $ get #id version) (get #id newState )
-                workflow :: Workflow <- workflow |> set #progress wfpNew   |> updateRecord                  
+                workflow :: Workflow <- workflow |> set #progress wfpNew   |> updateRecord  
+                Log.info $ "mutateHistory Update new Version = " ++  show (get #id newState)           
                 pure newState
 
     queryImmutableState :: (?modelContext::ModelContext, ?context::context, LoggingProvider context )=> Id Version -> IO (Id rec)
@@ -158,7 +160,7 @@ class (KnownSymbol (GetTableName rec), rec ~ GetModelByTableName (GetTableName r
     queryMutableState accessor workflow =  do
         mutable :: (Version,[Version]) <- queryVersionMutableValidfrom accessor workflow 
         let h = get #refHistory $ fst mutable
-        Log.info $ "querymutable " ++ show h
+        Log.info $ "queryMutableState " ++ show h
         let v = get #id $ fst mutable
         mstate <- query @rec |> filterWhere(#refHistory, h) |> filterWhereSql (#refValidfromversion, encodeUtf8("<= " ++ show v)) |>
                             queryOr 
@@ -172,12 +174,16 @@ class (KnownSymbol (GetTableName rec), rec ~ GetModelByTableName (GetTableName r
         Log.info $ "queryVersionMutableValidfrom Workflow=" ++ show workflow
         let wfprogress :: WorkflowProgress = fromJust $ getWfp workflow
             validfrom = tshow $ get #validfrom workflow
-            -- histoType = get #historyType workflow
-            historyId =  fromJust $ getStatehistoryIdMB accessor wfprogress
-            q :: Query = "SELECT * FROM versions v WHERE v.id in (SELECT max(id) FROM versions where ref_history = ? and validfrom <= ?)"
+        Log.info $ "workflowProgress:" ++ show wfprogress
+        let historyId =  fromJust $ case get #historyType workflow of
+                HistorytypeContract -> getStatehistoryIdMB contract wfprogress
+                HistorytypePartner -> getStatehistoryIdMB partner wfprogress
+                HistorytypeTariff -> getStatehistoryIdMB tariff wfprogress
+        Log.info $ "HistoryId:" ++ show historyId ++ "validfrom" ++ show validfrom
+        let q :: Query = "SELECT * FROM versions v WHERE v.id in (SELECT max(id) FROM versions where ref_history = ? and validfrom <= ?)"
             p :: (Id History, Text) = (Id historyId, validfrom)
         vs :: [Version]  <- sqlQuery  q p
-        let versionId = get #id $ fromJust $ head vs
+        let versionId = get #id $ fromJust $ head vs 
         Log.info ( "queryVersionMutableValidfrom versionid=" ++ show versionId )
         let q2 :: Query = "SELECT * FROM versions v WHERE ref_history = ? and v.id > ? and validfrom > ?"
         let p2 :: (Id History, Id Version,Text) = (Id historyId, versionId, validfrom)
@@ -187,6 +193,32 @@ class (KnownSymbol (GetTableName rec), rec ~ GetModelByTableName (GetTableName r
         workflow :: Workflow <- setWfp workflow (setShadowed accessor wfprogress (getKey versionId, shadowedIds)) |> updateRecord
         pure (fromJust $ head vs, shadowed)
             where getKey (Id key) = key
+
+    runMutation :: (?modelContext::ModelContext, ?context::context, LoggingProvider context, Show rec, CanVersion rec) => (WorkflowProgress -> Maybe (StateKeys (Id rec))) -> User -> HistoryType -> rec -> Text -> IO()
+    runMutation accessor usr histoType rec newContent = do
+        Log.info $ ">>>>>>>>>>>>>>> VOR  MUTATE " ++ show histoType 
+        wfMUT0 ::Workflow <- newRecord |> set #refUser (get #id usr) |> set #historyType histoType |> set #workflowType WftypeUpdate  |> createRecord
+        let h :: (Id History) = get #refHistory rec
+            wfp :: WorkflowProgress = case histoType of
+                HistorytypeContract -> WorkflowProgress (Just (stateKeysDefault { history = Just $ fromId h } )) Nothing Nothing []
+                HistorytypePartner -> WorkflowProgress Nothing (Just (stateKeysDefault { history = Just $ fromId h } )) Nothing []
+                HistorytypeTariff -> WorkflowProgress Nothing Nothing (Just (stateKeysDefault { history = Just $ fromId h } )) []
+            wfpJ :: Value = fromJust $ decode $ encode $ wfp
+        today <- today 
+        wfMUT1 <- wfMUT0 |> set #progress wfpJ |> set #validfrom today |> updateRecord
+        mutable :: (rec,[Version]) <- queryMutableState accessor wfMUT1
+        Log.info $ "MUTABLE=" ++ show (fst mutable)
+        let recMUT0 = fst mutable |> set #content newContent
+        recMUT :: rec <- mutateHistory getAccessor wfMUT1 recMUT0
+        wfMUT :: Workflow <- fetch (get #id wfMUT1)
+        Log.info $ ">>>>>>>>>>>>>>> NACH MUTATE" ++ show histoType
+        Log.info $ "Workflow für commit:" ++ show  wfMUT
+        result <- commitState accessor wfMUT 
+        case result of
+            Left msg -> Log.info $ "SUCCESS:"++ msg
+            Right msg -> Log.info $ "ERROR:" ++ msg
+    
+        Log.info $ ">>>>>>>>>>>>>>> NACH COMMITMUTATATION " ++ show histoType
 
 instance CanVersion Contract where
     getAccessor :: (WorkflowProgress -> Maybe (StateKeys (Id' "contracts")))

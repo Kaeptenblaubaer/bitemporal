@@ -10,6 +10,7 @@ import Application.Script.Prelude
 import IHP.Log as Log
 import Data.Maybe
 -- 
+
 run :: Script
 run = do
     usr :: User <- query @User |> fetchOne 
@@ -91,27 +92,10 @@ run = do
     
     Log.info ("NACH COMMIT TARIFF   TARIFF   TARIFF   TARIFF   TARIFF" ::String)
 
-    Log.info ("VOR  MUTATE CONTRACT CONTRACT CONTRACT CONTRACT CONTRACT" ::String)
-    wfcMUT0 ::Workflow <- newRecord |> set #refUser (get #id usr) |> set #historyType HistorytypeContract |> set #workflowType WftypeUpdate  |> createRecord
-    let h :: (Id History) = get #refHistory c
-        wfp :: WorkflowProgress = WorkflowProgress (Just (stateKeysDefault { history = Just $ fromId h } )) Nothing Nothing []
-        wfpJ :: Value = fromJust $ decode $ encode $ wfp
-    today <- today 
-    wfcMUT1 <- wfcMUT0 |> set #progress wfpJ |> set #validfrom today |> updateRecord
-    mutable <- queryMutableState contract wfcMUT1
-    Log.info $ "MUTABLE=" ++ show mutable
-    let cMUT0 = fst mutable |> set #content "mutated"
-    cMUT :: Contract <- mutateHistory contract wfcMUT1 cMUT0
-    wfcMUT :: Workflow <- fetch (get #id wfcMUT1)
-    Log.info ("NACH MUTATE CONTRACT CONTRACT CONTRACT CONTRACT CONTRACT" ::String)
-    Log.info $ "Workflow für commit:" ++ show  wfcMUT
+    runMutation contract usr HistorytypeContract c "mutatated Contract"
+    runMutation partner usr HistorytypePartner p "mutatated Partner"
+    runMutation tariff usr HistorytypeTariff t "mutatated Tariff"
 
-    result <- commitState contract wfcMUT 
-    case result of
-        Left msg -> Log.info $ "SUCCESS:"++ msg
-        Right msg -> Log.info $ "ERROR:" ++ msg
-
-    Log.info ("NACH COMMITMUTATATION CONTRACT CONTRACT CONTRACT CONTRACT CONTRACT" ::String)
 
 --    forEach (persistenceLogC ++ persistenceLogP ++ persistenceLogT) \pl -> do
 --        Log.info $ "Logged plog:" ++ show pl

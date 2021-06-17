@@ -30,6 +30,7 @@ instance Controller WorkflowsController where
         now <- getCurrentTime
         user <- query @User |> fetchOne 
         let historyIdMB = paramOrNothing @UUID "historyId"
+        Log.info $ "NewWorkflowAction h=" ++ show historyIdMB
         case historyIdMB of
             Nothing -> do
                 Log.info ("New Creation Workflow" :: String)
@@ -59,8 +60,9 @@ instance Controller WorkflowsController where
                             initialProgress :: Value = case hType of
                                 HistorytypeContract -> initialWfpV contract historyId 
                                 HistorytypePartner ->  initialWfpV partner historyId 
-                                HistorytypeTariff ->  initialWfpV tariff historyId 
-                            workflow = newRecord |> set #refUser (get #id user) |> set #validfrom today |> set #workflowType WftypeUpdate |>
+                                HistorytypeTariff ->  initialWfpV tariff historyId
+                        Log.info $ "Initialprogress:" ++ show initialProgress
+                        let workflow = newRecord |> set #refUser (get #id user) |> set #validfrom today |> set #workflowType WftypeUpdate |>
                                 set #historyType hType |> set #progress initialProgress
                         setModal NewView { .. }
         jumpToAction WorkflowsAction
@@ -149,8 +151,8 @@ instance Controller WorkflowsController where
         Log.info $ "ToCOmmitWF wf="++ show workflowId
         result <- case get #historyType  workflow of
             HistorytypeContract -> commitState contract workflow
-            HistorytypePartner -> commitState contract workflow
-            HistorytypeTariff -> commitState contract workflow
+            HistorytypePartner -> commitState partner workflow
+            HistorytypeTariff -> commitState tariff workflow
         case result of
             Left msg -> setSuccessMessage msg
             Right msg -> setErrorMessage msg
@@ -183,10 +185,11 @@ buildWorkflow workflow = workflow
 redirectUpdateState :: (?context::ControllerContext, ?modelContext::ModelContext) => Workflow -> IO ()
 redirectUpdateState workflow = do
     let histoType = get #historyType workflow
+    Log.info $ "redirectUpdateState" ++ show histoType
     updateState <- case histoType of
             HistorytypeContract -> getOrCreateStateIdForUpdate contract workflow
-            HistorytypePartner -> getOrCreateStateIdForUpdate contract workflow
-            HistorytypeTariff -> getOrCreateStateIdForUpdate contract workflow
+            HistorytypePartner -> getOrCreateStateIdForUpdate partner workflow
+            HistorytypeTariff -> getOrCreateStateIdForUpdate tariff workflow
     case updateState of
         Left (msg, key) -> do
             setSuccessMessage msg

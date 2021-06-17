@@ -11,7 +11,7 @@ config = do
     option Development
     option (AppHostname "localhost")
     logger <- liftIO $ newLogger def {
-        level = Debug,
+        level = Info,
         formatter = withTimeFormatter
     }
     option logger

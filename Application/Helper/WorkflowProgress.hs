@@ -41,13 +41,13 @@ fromId :: Id' table -> PrimaryKey table
 fromId (Id key) = key
 
 data StateKeys stateId = StateKeys  {
-    history :: Maybe UUID , version :: Maybe Integer, state :: Maybe stateId, shadowed :: Maybe (Integer,[Integer])} deriving (Generic)
+    history :: Maybe UUID , version :: Maybe Integer, state :: Maybe stateId, shadowed :: Maybe (Integer,[Integer])} deriving (Show, Generic)
 stateKeysDefault = StateKeys Nothing Nothing Nothing Nothing 
 
 data WorkflowProgress = WorkflowProgress {
     contract :: Maybe (StateKeys (Id' "contracts")), partner:: Maybe (StateKeys (Id' "partners")) , tariff :: Maybe (StateKeys (Id' "tariffs")),
     plog :: [PersistenceLog]
-    } deriving (Generic)
+    } deriving (Show, Generic)
 instance FromJSON (StateKeys (Id' "contracts"))
 instance ToJSON (StateKeys (Id' "contracts"))
 instance FromJSON (StateKeys (Id' "partners"))
@@ -57,6 +57,7 @@ instance ToJSON (StateKeys (Id' "tariffs"))
 instance FromJSON WorkflowProgress
 instance ToJSON WorkflowProgress
 
+workflowProgressDefault = ( WorkflowProgress (Just stateKeysDefault) (Just stateKeysDefault) (Just stateKeysDefault) [] )
 
 getWfp :: Workflow -> Maybe WorkflowProgress
 getWfp workflow  =  decode $ encode $ get #progress workflow
