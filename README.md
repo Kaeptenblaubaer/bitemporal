@@ -37,7 +37,7 @@ of a set of rectangles of validity and thus identifies a version.
 
 ### Composite bitemporal objects
 
-https://github.com/Kaeptenblaubaer/baba/blob/master/Bitemporale%20Historisierung.pdf
+![beware - work in progress](./BitemporaleHistorisierung.png)
 
 The second idea is based on the fact that object attributes maybe independendent from one another, for instance we 
 repaint the house more often, than we change the janitor.
@@ -81,8 +81,7 @@ in order to guarantee, that a given transaction and reference time identify at l
 Application domain specific consistency requires that, only versions of an attribute state, that has no successor (terminal state), can be updated. Update here means, that a succeeding version is created. Consistency of the attribute states can only be accomplished by the domain specific functions that transform the current state plus user input into the resulting state. Validation of an attribute state cannot be had apart from its construction. So updating a state that has successors invalidates those, as we *cannot in general* determine, what aspects of the successor state are independent of the change in the predecessor and how the dependent aspaects should change accordingly.
 
 ### Class Diagram: 
-https://drive.google.com/file/d/11xDaSwRilJys3GsUlmdRlqeL6Exte4j_/view
-
+![Class Diagram](./doc/BitemporalModel.png)
 
 #### Histories
 Histories consist of just an UUID, which denote the identy of an object over time.

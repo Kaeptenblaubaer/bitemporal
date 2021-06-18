@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<searchConnectorDescription xmlns="http://schemas.microsoft.com/windows/2009/searchConnector">
+  <description></description>
+  <isSearchOnlyItem>true</isSearchOnlyItem>
+  <includeInStartMenuScope>true</includeInStartMenuScope>
+  <templateInfo>
+    <folderType>{982725EE-6F47-479E-B447-812BFA7D2E8F}</folderType>
+  </templateInfo>
+  <simpleLocation>
+    <url>winrt://{S-1-5-21-1872628497-160881643-644933862-1001}/</url>
+    <serialized>MBAAAEAFCAAAAAAAADAAAAAAAYUgAAQDAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAJAUAwHoB4UccIoClGEiqOCAsCMw0peAEGgAAAAAcHApBgbAIHA0BgOA8CAvAweAMFAtAQMA0CA1AQLAIDAxAQLAEDA4AwNAIDA2AgMAgDA0AQOAcDAtAQMAYDAwAAOAgDAxAgNAQDAzAQLAYDA0AANAkDAzAwMAgDA2AgMA0CAxAAMAADAxAQfA8CAAAAAAAAAAAAAAA</serialized>
+  </simpleLocation>
+</searchConnectorDescription>
