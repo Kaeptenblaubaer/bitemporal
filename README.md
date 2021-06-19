@@ -1,6 +1,6 @@
 ![beware - work in progress](./wip.png)
 
-# bitemporal-pilot
+# bitemporal
 # A pilot project for a poor man's bitemporal data management using a simple application level transaction and workflow logic
 
 The project is based on this framework:
@@ -25,7 +25,7 @@ The above course of agreements
 would be described by sets of adjacent rectangles, reference time running horizontally, 
 transaction time vertically.
 
-![Rectangles of Validity](./ValidityRectangles.png)
+![Areas of Validity](./ValidityRectangles.png)
 
 Colloquially phrased, such a model provides answers to questions like 
 
@@ -67,12 +67,12 @@ and
 * the version by which the detail was changed or deleted is younger than v.
  
 Combining both ideas, we evaluate the states of attributes of an object with respect to a point of validity *pv* made of transaction and referenced time, as follows:
-* we identify the version *v* of the object pertaining to that point of validity by finding the rectangle of validity *rv* that contains *pv* and take 
+* we identify the version *v* of the object pertaining to that point of validity by finding the area of validity *rv* that contains *pv* and take 
   its creating version as *v* 
 * Attribute states relevant to this *pv* can be identified by *v* between the state's creating and invalidating version, which is the reason why version IDs must be monotonely ascending with time.
 
 ### Bitemporal Consistency: 
-The rectangles describing the validity of the versions of an object 
+The areas describing the validity of the versions of an object 
 * must not overlap, and
 * must be contiguous
 
@@ -83,26 +83,59 @@ Application domain specific consistency requires that, only versions of an attri
 ### Class Diagram: 
 ![Class Diagram](./doc/BitemporalModel.png)
 
-#### Histories
-Histories consist of just an UUID, which denote the identy of an object over time.
+#### history
+Histories consist of
+- an UUID, which denotes the identy of an aggregate object over time.
+A history changes when one of its components changes: this is modelled by its versions.
 
-#### Versions
-Version data have an integer typed id that is monotonely ascending, a reference to their history instance, a status attribute with a domain of { *committed*,*workinprogress*} and a validfrom attribute.
+#### version
+Version data consist of 
+- an id, from an ordered class, assigned monotonely ascending at creation,
+- a reference to
+- their history instance
+and attributes 
+- validfrom
+- created at a
+- status a domain of { *committed*,*workinprogress*}
 
-#### Workflows
-Workflow data refer to a user and a version
+#### component
+Components are an abstract class, that denotes identities of parts. Change of a component is denoted by its attribute state and its versions. Components are a recursive structure, the root of wich denotes the entire aggregate. Child components denote entities which are regarded as having no existence independent from the root component. 
 
-#### ValidityRectangles
+Components have 
+- an id
+and reference
+- a history
 
-have a reference to their history and version instances and attributes for 
-* reference time: *validfrom*, *validthru* and
-* transaction time: *createdat*, *invalidatedat*
+#### state
+Attribute states are an abstract class that denotes the state of attributes of components and their change.
+States have 
+- an id
+refererence
+- the version for which the state was created, *refvalidfrom*, and
+- and, possibly, to that which invalidated, *refvalidthru*, it.
 
-#### Attribute state
+![the current implementation has only root components and identifies them with the history.](./wip.png)
+## *the current implementation has only root components and identifies them with the history.*
 
-Attribute state entities have state attributes and references to the versions, 
-* that created, *refvalidfrom*, and
-* possibly to those that invalidated, *refinvalidfrom*, them.
+##### contract, partner, tariff
+These are examples of realizations of root components. 
+
+##### contractState, partnerState, tariffState
+These are examples of realizations of root component states. 
+
+##### contractPartner, productItem
+These are examples of child components, which have no existence independent of their parent components. 
+E.g. a non existing partner cannot have a contract (which, of course, does not mean that person must be alive). 
+
+
+#### workflow (not shown)_
+Workflow data refer to 
+- a user and 
+- a version
+and attributes for
+- state of work
+- persistence log
+
 
 ### Bitemporal CRUD
 
