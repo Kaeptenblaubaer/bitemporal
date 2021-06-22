@@ -17,16 +17,16 @@ run = do
     wfc ::Workflow <- newRecord |> set #refUser (get #id usr) |> set #historyType HistorytypeContract |> set #workflowType WftypeNew |> createRecord
     wfp ::Workflow <- newRecord |> set #refUser (get #id usr) |> set #historyType HistorytypePartner |> set #workflowType WftypeNew |> createRecord
     wft ::Workflow <- newRecord |> set #refUser (get #id usr) |> set #historyType HistorytypeTariff |> set #workflowType WftypeNew |> createRecord  
-    let c0 :: Contract = newRecord |> set #content "initial"
-        p0 :: Partner = newRecord |> set #content "initial"
-        t0 :: Tariff = newRecord |> set #content "initial"
-    c::Contract <- createHistory contract wfc c0
+    let c0 :: ContractState = newRecord |> set #content "initial"
+        p0 :: PartnerState = newRecord |> set #content "initial"
+        t0 :: TariffState = newRecord |> set #content "initial"
+    c::ContractState <- createHistory contract wfc c0
     ch :: History <- fetch (get #refHistory c)
     cv :: Version <- fetch (get #refValidfromversion c)
-    p::Partner <- createHistory partner wfp p0
+    p::PartnerState <- createHistory partner wfp p0
     ph :: History <- fetch (get #refHistory p)
     pv :: Version <- fetch (get #refValidfromversion p)
-    t::Tariff <- createHistory tariff wft t0
+    t::TariffState <- createHistory tariff wft t0
     th :: History <- fetch (get #refHistory t)
     tv :: Version <- fetch (get #refValidfromversion t)
     Log.info ("=============================================" :: String)
@@ -36,7 +36,7 @@ run = do
     Log.info ("=============================================" :: String)
     let tlogWC :: CRULog (Id Workflow) = mkInsertLog (get #id wfc)
         tlogWCJ = toJSON tlogWC
-        tlogC :: CRULog (Id Contract) = mkInsertLog (get #id c)
+        tlogC :: CRULog (Id ContractState) = mkInsertLog (get #id c)
         tlogCJ = toJSON tlogC
         tlogHC :: CRULog (Id History) = mkInsertLog (get #id ch)
         tlogHCJ = toJSON tlogHC
@@ -44,7 +44,7 @@ run = do
         tlogVCJ = toJSON tlogVC
         tlogWP :: CRULog (Id Workflow) = mkInsertLog (get #id wfp)
         tlogWPJ = toJSON tlogWC
-        tlogP :: CRULog (Id Partner) = mkInsertLog (get #id p)
+        tlogP :: CRULog (Id PartnerState) = mkInsertLog (get #id p)
         tlogPJ = toJSON tlogP
         tlogHP :: CRULog (Id History) = mkInsertLog (get #id ph)
         tlogHPJ = toJSON tlogHP
@@ -52,7 +52,7 @@ run = do
         tlogVPJ = toJSON tlogVP
         tlogWT :: CRULog (Id Workflow) = mkInsertLog (get #id wft)
         tlogWTJ = toJSON tlogWT
-        tlogT :: CRULog (Id Tariff) = mkInsertLog (get #id t)
+        tlogT :: CRULog (Id TariffState) = mkInsertLog (get #id t)
         tlogTJ = toJSON tlogC
         tlogHT :: CRULog (Id History) = mkInsertLog (get #id th)
         tlogHTJ = toJSON tlogHT
@@ -92,9 +92,9 @@ run = do
     
     Log.info ("NACH COMMIT TARIFF   TARIFF   TARIFF   TARIFF   TARIFF" ::String)
 
-    runMutation contract usr HistorytypeContract c "mutatated Contract"
-    runMutation partner usr HistorytypePartner p "mutatated Partner"
-    runMutation tariff usr HistorytypeTariff t "mutatated Tariff"
+    runMutation contract usr HistorytypeContract c "mutatated ContractState"
+    runMutation partner usr HistorytypePartner p "mutatated PartnerState"
+    runMutation tariff usr HistorytypeTariff t "mutatated TariffState"
 
 
 --    forEach (persistenceLogC ++ persistenceLogP ++ persistenceLogT) \pl -> do

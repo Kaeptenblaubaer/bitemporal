@@ -2,7 +2,7 @@ module Web.View.Contracts.Edit where
 import Web.View.Prelude
 import Web.Controller.Workflows
 
-data EditView = EditView { workflowId :: Id Workflow, contractUpd :: Contract }
+data EditView = EditView { workflowId :: Id Workflow, contractUpd :: ContractState }
 
 instance View EditView where
     html EditView { .. } = [hsx|
@@ -10,14 +10,14 @@ instance View EditView where
             <ol class="breadcrumb">
                 <li class="breadcrumb-item"><a href={ShowWorkflowAction workflowId}>Workflow</a></li>
                 <li class="breadcrumb-item"><a href={ContractsAction}>Contracts</a></li>
-                <li class="breadcrumb-item active">Edit Contract</li>
+                <li class="breadcrumb-item active">Edit ContractState</li>
             </ol>
         </nav>
-        <h1>Edit Contract</h1>
+        <h1>Edit ContractState</h1>
         {renderForm contractUpd}
     |]
 
-renderForm :: Contract -> Html
+renderForm :: ContractState -> Html
 renderForm contract = formFor contract [hsx|
     {(textField #refValidfromversion)}
     {(textField #refValidthruversion)}

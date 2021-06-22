@@ -56,13 +56,13 @@ instance Controller VersionsController where
         history :: History <- fetch (get #refHistory version)
         case (get #historyType history) of
             HistorytypeContract -> do
-                contractId :: Id Contract <- queryImmutableState versionId
+                contractId :: Id ContractState <- queryImmutableState versionId
                 redirectTo $ ShowContractAction contractId
             HistorytypePartner ->  do
-                partnerId :: Id Partner <-  queryImmutableState versionId
+                partnerId :: Id PartnerState <-  queryImmutableState versionId
                 redirectTo $ ShowPartnerAction partnerId
             HistorytypeTariff ->    do
-                tariffId :: Id Tariff <- queryImmutableState versionId
+                tariffId :: Id TariffState <- queryImmutableState versionId
                 redirectTo $ ShowTariffAction tariffId
 
 

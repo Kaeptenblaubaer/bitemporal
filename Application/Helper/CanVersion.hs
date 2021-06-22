@@ -220,33 +220,33 @@ class (Show rec, KnownSymbol (GetTableName rec), rec ~ GetModelByTableName (GetT
     
         Log.info $ ">>>>>>>>>>>>>>> NACH COMMITMUTATATION " ++ show histoType
 
-instance CanVersion Contract where
-    getAccessor :: (WorkflowProgress -> Maybe (StateKeys (Id' "contracts")))
+instance CanVersion ContractState where
+    getAccessor :: (WorkflowProgress -> Maybe (StateKeys (Id' "contract_states")))
     getAccessor = contract
-    mkPersistenceLogState :: CRULog (Id Contract) -> PersistenceLog
+    mkPersistenceLogState :: CRULog (Id ContractState) -> PersistenceLog
     mkPersistenceLogState cru = ContractPL cru
-    setShadowed :: (WorkflowProgress ->  Maybe (StateKeys (Id' "contracts"))) -> WorkflowProgress -> (Integer,[Integer]) -> WorkflowProgress
-    setShadowed accessor wfp shadow = let new :: StateKeys (Id' "contracts") = fromJust $ accessor wfp 
+    setShadowed :: (WorkflowProgress ->  Maybe (StateKeys (Id' "contract_states"))) -> WorkflowProgress -> (Integer,[Integer]) -> WorkflowProgress
+    setShadowed accessor wfp shadow = let new :: StateKeys (Id' "contract_states") = fromJust $ accessor wfp 
         in wfp {contract = Just $ new { shadowed = Just shadow }}
-    setWorkFlowState :: WorkflowProgress -> Maybe (StateKeys (Id' "contracts")) -> WorkflowProgress
+    setWorkFlowState :: WorkflowProgress -> Maybe (StateKeys (Id' "contract_states")) -> WorkflowProgress
     setWorkFlowState wfp s = wfp  {contract = s} 
-instance CanVersion Partner where
-    getAccessor :: (WorkflowProgress ->Maybe (StateKeys (Id' "partners")))
+instance CanVersion PartnerState where
+    getAccessor :: (WorkflowProgress ->Maybe (StateKeys (Id' "partner_states")))
     getAccessor = partner
-    mkPersistenceLogState :: CRULog (Id Partner) -> PersistenceLog
+    mkPersistenceLogState :: CRULog (Id PartnerState) -> PersistenceLog
     mkPersistenceLogState cru = PartnerPL cru
-    setShadowed :: (WorkflowProgress ->  Maybe (StateKeys (Id' "partners"))) -> WorkflowProgress -> (Integer,[Integer]) -> WorkflowProgress
-    setShadowed accessor wfp shadow = let new :: StateKeys (Id' "partners") = fromJust $ accessor wfp 
+    setShadowed :: (WorkflowProgress ->  Maybe (StateKeys (Id' "partner_states"))) -> WorkflowProgress -> (Integer,[Integer]) -> WorkflowProgress
+    setShadowed accessor wfp shadow = let new :: StateKeys (Id' "partner_states") = fromJust $ accessor wfp 
         in wfp {partner = Just $ new { shadowed = Just shadow }}
-    setWorkFlowState :: WorkflowProgress ->Maybe (StateKeys (Id' "partners")) -> WorkflowProgress
+    setWorkFlowState :: WorkflowProgress ->Maybe (StateKeys (Id' "partner_states")) -> WorkflowProgress
     setWorkFlowState wfp s = wfp  {partner = s} 
-instance CanVersion Tariff where
-    getAccessor :: (WorkflowProgress ->Maybe (StateKeys (Id' "tariffs")))
+instance CanVersion TariffState where
+    getAccessor :: (WorkflowProgress ->Maybe (StateKeys (Id' "tariff_states")))
     getAccessor = tariff
-    mkPersistenceLogState :: CRULog (Id Tariff) -> PersistenceLog
+    mkPersistenceLogState :: CRULog (Id TariffState) -> PersistenceLog
     mkPersistenceLogState cru = TariffPL cru
-    setShadowed :: (WorkflowProgress ->  Maybe (StateKeys (Id' "tariffs"))) -> WorkflowProgress -> (Integer,[Integer]) -> WorkflowProgress
-    setShadowed accessor wfp shadow = let new :: StateKeys (Id' "tariffs") = fromJust $ accessor wfp 
+    setShadowed :: (WorkflowProgress ->  Maybe (StateKeys (Id' "tariff_states"))) -> WorkflowProgress -> (Integer,[Integer]) -> WorkflowProgress
+    setShadowed accessor wfp shadow = let new :: StateKeys (Id' "tariff_states") = fromJust $ accessor wfp 
         in wfp {tariff = Just $ new { shadowed = Just shadow }}
-    setWorkFlowState :: WorkflowProgress ->Maybe (StateKeys (Id' "tariffs")) -> WorkflowProgress
+    setWorkFlowState :: WorkflowProgress ->Maybe (StateKeys (Id' "tariff_states")) -> WorkflowProgress
     setWorkFlowState wfp s = wfp  {tariff = s} 

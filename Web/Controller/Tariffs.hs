@@ -12,7 +12,7 @@ import IHP.Log.Types
 instance Controller TariffsController where
     action TariffsAction = do
         workflow::Workflow <- getCurrentWorkflow
-        tariffs <- query @Tariff |> fetch
+        tariffs <- query @TariffState |> fetch
         render IndexView { .. }
 
     action NewTariffAction = do
@@ -42,7 +42,7 @@ instance Controller TariffsController where
                 Left tariff -> render EditView { workflowId, .. }
                 Right tariff -> do
                     tariff <- tariff |> updateRecord
-                    setSuccessMessage "Tariff updated"
+                    setSuccessMessage "TariffState updated"
                     let tariffId = get #id tariff
                     redirectTo EditTariffAction { .. }
 
@@ -50,14 +50,14 @@ instance Controller TariffsController where
         Log.info  ("Enter createHistory workflow=" ::String)
         workflowId <- getCurrentWorkflowId
         workflow :: Workflow <- fetch workflowId
-        let tariffNew = newRecord @Tariff
+        let tariffNew = newRecord @TariffState
         tariffNew
             |> buildTariff
             |> ifValid \case
                 Left tariffNew -> render NewView { .. } 
                 Right tariffNew -> do
-                    tariffCreated :: Tariff <- createHistory tariff workflow tariffNew 
-                    setSuccessMessage "Tariff created"
+                    tariffCreated :: TariffState <- createHistory tariff workflow tariffNew 
+                    setSuccessMessage "TariffState created"
                     let tariffId = get #id tariffCreated
                     redirectTo EditTariffAction {..}
 
@@ -65,7 +65,7 @@ instance Controller TariffsController where
         workflow::Workflow <- getCurrentWorkflow
         tariff <- fetch tariffId
         deleteRecord tariff
-        setSuccessMessage "Tariff deleted"
+        setSuccessMessage "TariffState deleted"
         redirectTo TariffsAction
 
 buildTariff tariff = tariff

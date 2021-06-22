@@ -14,13 +14,13 @@ instance Controller ContractsController where
 
     action ContractsAction = do
         workflow::Workflow <- getCurrentWorkflow
-        contracts <- query @Contract |> fetch
+        contracts <- query @ContractState |> fetch
         render IndexView { .. }
 
     action NewContractAction = do
         workflow::Workflow <- getCurrentWorkflow
         let workflowId = get #id workflow
-        let contractNew ::Contract = newRecord 
+        let contractNew ::ContractState = newRecord 
         render NewView { .. }
 
     action ShowContractAction { contractId } = do
@@ -48,7 +48,7 @@ instance Controller ContractsController where
                 Right contractUpd -> do
                     Log.info ("UpdateContract Success"::String)
                     contractPers <- mutateHistory contract workflow contractUpd
-                    setSuccessMessage "Contract updated"
+                    setSuccessMessage "ContractState updated"
                     let contractId = get #id contractPers
                     redirectTo EditContractAction {..}
 
@@ -56,7 +56,7 @@ instance Controller ContractsController where
         Log.info  ("Enter createHistory workflow=" :: String)
         workflowId <- getCurrentWorkflowId
         workflow :: Workflow <- fetch workflowId
-        let contractNew = newRecord @Contract
+        let contractNew = newRecord @ContractState
         contractNew
             |> buildContract
             |> ifValid \case
@@ -65,8 +65,8 @@ instance Controller ContractsController where
                     render NewView { workflowId, .. } 
                 Right contractNew -> do
                     Log.info ("CreateContract Success"::String)
-                    contractCreated :: Contract <- createHistory contract workflow contractNew
-                    setSuccessMessage "Contract created"
+                    contractCreated :: ContractState <- createHistory contract workflow contractNew
+                    setSuccessMessage "ContractState created"
                     let contractId = get #id contractCreated
                     redirectTo EditContractAction {..}
 
@@ -74,7 +74,7 @@ instance Controller ContractsController where
         workflow::Workflow <- getCurrentWorkflow
         contract <- fetch contractId
         deleteRecord contract
-        setSuccessMessage "Contract deleted"
+        setSuccessMessage "ContractState deleted"
         redirectTo ContractsAction
 
 buildContract contract = contract

@@ -41,37 +41,37 @@ CREATE TABLE versions (
     "committed" BOOLEAN DEFAULT false NOT NULL,
     ref_shadowedby INT DEFAULT NULL
 );
-CREATE TABLE contracts (
+CREATE TABLE contract_states (
     id BIGSERIAL PRIMARY KEY NOT NULL,
     ref_validfromversion INT NOT NULL,
     ref_validthruversion INT DEFAULT NULL,
     ref_history UUID DEFAULT uuid_generate_v4() NOT NULL,
     content TEXT NOT NULL
 );
-CREATE TABLE partners (
+CREATE TABLE partner_states (
     id BIGSERIAL PRIMARY KEY NOT NULL,
     ref_validfromversion INT NOT NULL,
     ref_validthruversion INT DEFAULT NULL,
     ref_history UUID DEFAULT uuid_generate_v4() NOT NULL,
     content TEXT NOT NULL
 );
-CREATE TABLE tariffs (
+CREATE TABLE tariff_states (
     id BIGSERIAL PRIMARY KEY NOT NULL,
     ref_validfromversion INT NOT NULL,
     ref_validthruversion INT DEFAULT NULL,
     ref_history UUID DEFAULT uuid_generate_v4() NOT NULL,
     content TEXT NOT NULL
 );
-ALTER TABLE contracts ADD CONSTRAINT contracts_ref_Validfromversion FOREIGN KEY (ref_validfromversion) REFERENCES versions (id) ON DELETE NO ACTION;
-ALTER TABLE contracts ADD CONSTRAINT contracts_ref_Validthruversion FOREIGN KEY (ref_validthruversion) REFERENCES versions (id) ON DELETE SET NULL;
-ALTER TABLE contracts ADD CONSTRAINT contracts_ref_history FOREIGN KEY (ref_history) REFERENCES histories (id) ON DELETE CASCADE;
+ALTER TABLE contract_states ADD CONSTRAINT contracts_ref_Validfromversion FOREIGN KEY (ref_validfromversion) REFERENCES versions (id) ON DELETE NO ACTION;
+ALTER TABLE contract_states ADD CONSTRAINT contracts_ref_Validthruversion FOREIGN KEY (ref_validthruversion) REFERENCES versions (id) ON DELETE SET NULL;
+ALTER TABLE contract_states ADD CONSTRAINT contracts_ref_history FOREIGN KEY (ref_history) REFERENCES histories (id) ON DELETE CASCADE;
 ALTER TABLE histories ADD CONSTRAINT histories_ref_OwnedByWorkflow FOREIGN KEY (ref_owned_by_workflow) REFERENCES workflows (id) ON DELETE NO ACTION;
-ALTER TABLE partners ADD CONSTRAINT partners_ref_Validfromversion FOREIGN KEY (ref_validfromversion) REFERENCES versions (id) ON DELETE CASCADE;
-ALTER TABLE partners ADD CONSTRAINT partners_ref_history FOREIGN KEY (ref_history) REFERENCES histories (id) ON DELETE CASCADE;
-ALTER TABLE partners ADD CONSTRAINT partners_ref_validthruversion FOREIGN KEY (ref_validthruversion) REFERENCES versions (id) ON DELETE SET NULL;
-ALTER TABLE tariffs ADD CONSTRAINT tariffs_ref_ref_history FOREIGN KEY (ref_history) REFERENCES histories (id) ON DELETE NO ACTION;
-ALTER TABLE tariffs ADD CONSTRAINT tariffs_ref_ref_validfromversion FOREIGN KEY (ref_validfromversion) REFERENCES versions (id) ON DELETE NO ACTION;
-ALTER TABLE tariffs ADD CONSTRAINT tariffs_ref_ref_validthruversion FOREIGN KEY (ref_validthruversion) REFERENCES versions (id) ON DELETE NO ACTION;
+ALTER TABLE partner_states ADD CONSTRAINT partners_ref_Validfromversion FOREIGN KEY (ref_validfromversion) REFERENCES versions (id) ON DELETE CASCADE;
+ALTER TABLE partner_states ADD CONSTRAINT partners_ref_history FOREIGN KEY (ref_history) REFERENCES histories (id) ON DELETE CASCADE;
+ALTER TABLE partner_states ADD CONSTRAINT partners_ref_validthruversion FOREIGN KEY (ref_validthruversion) REFERENCES versions (id) ON DELETE SET NULL;
+ALTER TABLE tariff_states ADD CONSTRAINT tariffs_ref_ref_history FOREIGN KEY (ref_history) REFERENCES histories (id) ON DELETE NO ACTION;
+ALTER TABLE tariff_states ADD CONSTRAINT tariffs_ref_ref_validfromversion FOREIGN KEY (ref_validfromversion) REFERENCES versions (id) ON DELETE NO ACTION;
+ALTER TABLE tariff_states ADD CONSTRAINT tariffs_ref_ref_validthruversion FOREIGN KEY (ref_validthruversion) REFERENCES versions (id) ON DELETE NO ACTION;
 ALTER TABLE userroles ADD CONSTRAINT userroles_ref_refrole FOREIGN KEY (ref_role) REFERENCES roles (id) ON DELETE CASCADE;
 ALTER TABLE userroles ADD CONSTRAINT userroles_ref_refuser FOREIGN KEY (ref_user) REFERENCES users (id) ON DELETE CASCADE;
 ALTER TABLE versions ADD CONSTRAINT versions_ref_refhistory FOREIGN KEY (ref_history) REFERENCES histories (id) ON DELETE CASCADE;
