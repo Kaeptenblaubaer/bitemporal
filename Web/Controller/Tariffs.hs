@@ -69,4 +69,4 @@ instance Controller TariffsController where
         redirectTo TariffsAction
 
 buildTariff tariff = tariff
-    |> fill @'["refHistory","refValidfromversion","refValidthruversion","content"]
+    |> fill @'["refEntity","refValidfromversion","refValidthruversion","content"]

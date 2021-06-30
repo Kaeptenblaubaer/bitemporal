@@ -21,7 +21,7 @@ renderForm :: ContractState -> Html
 renderForm contract = formFor contract [hsx|
     {(textField #refValidfromversion)}
     {(textField #refValidthruversion)}
-    {(textField #refHistory)}
+    {(textField #refEntity)}
     {(textField #content)}
     {submitButton}
 |]

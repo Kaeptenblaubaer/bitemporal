@@ -45,31 +45,46 @@ CREATE TABLE contract_states (
     id BIGSERIAL PRIMARY KEY NOT NULL,
     ref_validfromversion INT NOT NULL,
     ref_validthruversion INT DEFAULT NULL,
-    ref_history UUID DEFAULT uuid_generate_v4() NOT NULL,
+    ref_entity BIGSERIAL NOT NULL,
     content TEXT NOT NULL
 );
 CREATE TABLE partner_states (
     id BIGSERIAL PRIMARY KEY NOT NULL,
     ref_validfromversion INT NOT NULL,
     ref_validthruversion INT DEFAULT NULL,
-    ref_history UUID DEFAULT uuid_generate_v4() NOT NULL,
+    ref_entity BIGSERIAL NOT NULL,
     content TEXT NOT NULL
 );
 CREATE TABLE tariff_states (
     id BIGSERIAL PRIMARY KEY NOT NULL,
     ref_validfromversion INT NOT NULL,
     ref_validthruversion INT DEFAULT NULL,
-    ref_history UUID DEFAULT uuid_generate_v4() NOT NULL,
+    ref_entity BIGSERIAL NOT NULL,
     content TEXT NOT NULL
 );
+CREATE TABLE contracts (
+    id BIGSERIAL PRIMARY KEY NOT NULL,
+    ref_history UUID DEFAULT uuid_generate_v4() NOT NULL
+);
+CREATE TABLE partners (
+    id BIGSERIAL PRIMARY KEY NOT NULL,
+    ref_history UUID DEFAULT uuid_generate_v4() NOT NULL
+);
+CREATE TABLE tariffs (
+    id BIGSERIAL PRIMARY KEY NOT NULL,
+    ref_history UUID DEFAULT uuid_generate_v4() NOT NULL
+);
+ALTER TABLE contract_states ADD CONSTRAINT contract_states_ref_ref_entity FOREIGN KEY (ref_entity) REFERENCES contracts (id) ON DELETE CASCADE;
 ALTER TABLE contract_states ADD CONSTRAINT contracts_ref_Validfromversion FOREIGN KEY (ref_validfromversion) REFERENCES versions (id) ON DELETE NO ACTION;
 ALTER TABLE contract_states ADD CONSTRAINT contracts_ref_Validthruversion FOREIGN KEY (ref_validthruversion) REFERENCES versions (id) ON DELETE SET NULL;
-ALTER TABLE contract_states ADD CONSTRAINT contracts_ref_history FOREIGN KEY (ref_history) REFERENCES histories (id) ON DELETE CASCADE;
+ALTER TABLE contracts ADD CONSTRAINT contracts_ref_ref_history FOREIGN KEY (ref_history) REFERENCES histories (id) ON DELETE NO ACTION;
 ALTER TABLE histories ADD CONSTRAINT histories_ref_OwnedByWorkflow FOREIGN KEY (ref_owned_by_workflow) REFERENCES workflows (id) ON DELETE NO ACTION;
+ALTER TABLE partner_states ADD CONSTRAINT partner_states_ref_ref_entity FOREIGN KEY (ref_entity) REFERENCES partners (id) ON DELETE CASCADE;
 ALTER TABLE partner_states ADD CONSTRAINT partners_ref_Validfromversion FOREIGN KEY (ref_validfromversion) REFERENCES versions (id) ON DELETE CASCADE;
-ALTER TABLE partner_states ADD CONSTRAINT partners_ref_history FOREIGN KEY (ref_history) REFERENCES histories (id) ON DELETE CASCADE;
+ALTER TABLE partners ADD CONSTRAINT partners_ref_ref_history FOREIGN KEY (ref_history) REFERENCES histories (id) ON DELETE NO ACTION;
 ALTER TABLE partner_states ADD CONSTRAINT partners_ref_validthruversion FOREIGN KEY (ref_validthruversion) REFERENCES versions (id) ON DELETE SET NULL;
-ALTER TABLE tariff_states ADD CONSTRAINT tariffs_ref_ref_history FOREIGN KEY (ref_history) REFERENCES histories (id) ON DELETE NO ACTION;
+ALTER TABLE tariff_states ADD CONSTRAINT tariff_states_ref_ref_entity FOREIGN KEY (ref_entity) REFERENCES tariffs (id) ON DELETE CASCADE;
+ALTER TABLE tariffs ADD CONSTRAINT tariffs_ref_ref_history FOREIGN KEY (ref_history) REFERENCES histories (id) ON DELETE NO ACTION;
 ALTER TABLE tariff_states ADD CONSTRAINT tariffs_ref_ref_validfromversion FOREIGN KEY (ref_validfromversion) REFERENCES versions (id) ON DELETE NO ACTION;
 ALTER TABLE tariff_states ADD CONSTRAINT tariffs_ref_ref_validthruversion FOREIGN KEY (ref_validthruversion) REFERENCES versions (id) ON DELETE NO ACTION;
 ALTER TABLE userroles ADD CONSTRAINT userroles_ref_refrole FOREIGN KEY (ref_role) REFERENCES roles (id) ON DELETE CASCADE;

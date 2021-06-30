@@ -20,7 +20,7 @@ renderForm :: TariffState -> Html
 renderForm tariff = formFor tariff [hsx|
     {(textField #refValidfromversion)}
     {(textField #refValidthruversion)}
-    {(textField #refHistory)}
+    {(textField #refEntity)}
     {(textField #content)}
     {submitButton}
 |]

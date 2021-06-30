@@ -13,7 +13,7 @@ instance View ShowView where
         </nav>
         <h1>Show ContractState</h1>
         <table><thead><tr><th>history</th><th>validfromversion</th><th>validthruversion</th></tr><tr><th>content</th></tr></thead><tbody>
-        <tr><td>{get #refHistory contract}</td><td>{get #refValidfromversion contract}</td><td>{get #refValidthruversion contract}</td></tr>
+        <tr><td>{get #refEntity contract}</td><td>{get #refValidfromversion contract}</td><td>{get #refValidthruversion contract}</td></tr>
         <tr><td>{get #content contract}</td></tr>
         </tbody></table>
     |]

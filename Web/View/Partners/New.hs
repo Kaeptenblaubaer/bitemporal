@@ -19,7 +19,7 @@ renderForm :: PartnerState -> Html
 renderForm partner = formFor partner [hsx|
     {(textField #refValidfromversion)}
     {(textField #refValidthruversion)}
-    {(textField #refHistory)}
+    {(textField #refEntity)}
     {(textField #content)}
     {submitButton}
 |]
