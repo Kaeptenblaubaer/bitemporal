@@ -1,7 +1,7 @@
 module Web.View.Contracts.Index where
 import Web.View.Prelude
 
-data IndexView = IndexView { contracts :: [Contract] }
+data IndexView = IndexView { contracts :: [ContractState] }
 
 instance View IndexView where
     html IndexView { .. } = [hsx|
@@ -15,7 +15,7 @@ instance View IndexView where
             <table class="table">
                 <thead>
                     <tr>
-                        <th>Contract</th>
+                        <th>ContractState</th>
                         <th></th>
                         <th></th>
                         <th></th>

@@ -11,21 +11,21 @@ data StaticController = WelcomeAction deriving (Eq, Show, Data)
 data ContractsController
     = ContractsAction
     | NewContractAction 
-    | ShowContractAction { contractId :: !(Id Contract) }
+    | ShowContractAction { contractId :: !(Id ContractState) }
     | CreateContractAction
-    | EditContractAction { contractId :: !(Id Contract) }
-    | UpdateContractAction { contractId :: !(Id Contract) }
-    | DeleteContractAction { contractId :: !(Id Contract) }
+    | EditContractAction { contractId :: !(Id ContractState) }
+    | UpdateContractAction { contractId :: !(Id ContractState) }
+    | DeleteContractAction { contractId :: !(Id ContractState) }
     deriving (Eq, Show, Data)
 
 data PartnersController
     = PartnersAction
     | NewPartnerAction
-    | ShowPartnerAction { partnerId :: !(Id Partner) }
+    | ShowPartnerAction { partnerId :: !(Id PartnerState) }
     | CreatePartnerAction
-    | EditPartnerAction { partnerId :: !(Id Partner) }
-    | UpdatePartnerAction { partnerId :: !(Id Partner) }
-    | DeletePartnerAction { partnerId :: !(Id Partner) }
+    | EditPartnerAction { partnerId :: !(Id PartnerState) }
+    | UpdatePartnerAction { partnerId :: !(Id PartnerState) }
+    | DeletePartnerAction { partnerId :: !(Id PartnerState) }
     deriving (Eq, Show, Data)
 
 data WorkflowsController
@@ -97,9 +97,9 @@ data VersionsController
 data TariffsController
     = TariffsAction
     | NewTariffAction
-    | ShowTariffAction { tariffId :: !(Id Tariff) }
+    | ShowTariffAction { tariffId :: !(Id TariffState) }
     | CreateTariffAction
-    | EditTariffAction { tariffId :: !(Id Tariff) }
-    | UpdateTariffAction { tariffId :: !(Id Tariff) }
-    | DeleteTariffAction { tariffId :: !(Id Tariff) }
+    | EditTariffAction { tariffId :: !(Id TariffState) }
+    | UpdateTariffAction { tariffId :: !(Id TariffState) }
+    | DeleteTariffAction { tariffId :: !(Id TariffState) }
     deriving (Eq, Show, Data)

@@ -127,20 +127,20 @@ class (KnownSymbol (GetTableName rec), rec ~ GetModelByTableName (GetTableName r
         pure $ (fromJust $ head vs, shadowed)
             where getKey (Id key) = key
 
-instance CanVersion Contract where
-    getAccessor :: (WorkflowProgress ->Maybe (StateKeys (Id' "contracts")))
+instance CanVersion ContractState where
+    getAccessor :: (WorkflowProgress ->Maybe (StateKeys (Id' "contract_states")))
     getAccessor = contract
-    setWorkFlowState :: WorkflowProgress ->Maybe (StateKeys (Id' "contracts")) -> WorkflowProgress
+    setWorkFlowState :: WorkflowProgress ->Maybe (StateKeys (Id' "contract_states")) -> WorkflowProgress
     setWorkFlowState wfp s = wfp  {contract = s} 
-instance CanVersion Partner where
-    getAccessor :: (WorkflowProgress ->Maybe (StateKeys (Id' "partners")))
+instance CanVersion PartnerState where
+    getAccessor :: (WorkflowProgress ->Maybe (StateKeys (Id' "partner_states")))
     getAccessor = partner
-    setWorkFlowState :: WorkflowProgress ->Maybe (StateKeys (Id' "partners")) -> WorkflowProgress
+    setWorkFlowState :: WorkflowProgress ->Maybe (StateKeys (Id' "partner_states")) -> WorkflowProgress
     setWorkFlowState wfp s = wfp  {partner = s} 
-instance CanVersion Tariff where
-    setWorkFlowState :: WorkflowProgress ->Maybe (StateKeys (Id' "tariffs")) -> WorkflowProgress
+instance CanVersion TariffState where
+    setWorkFlowState :: WorkflowProgress ->Maybe (StateKeys (Id' "tariff_states")) -> WorkflowProgress
     setWorkFlowState wfp s = wfp  {tariff = s} 
-    getAccessor :: (WorkflowProgress ->Maybe (StateKeys (Id' "tariffs")))
+    getAccessor :: (WorkflowProgress ->Maybe (StateKeys (Id' "tariff_states")))
     getAccessor = tariff
 
 getCurrentWorkflow :: (?context::ControllerContext, ?modelContext::ModelContext) => IO Workflow
@@ -171,14 +171,14 @@ data StateKeys stateId = StateKeys  {
 stateKeysDefault = StateKeys Nothing Nothing Nothing Nothing 
 
 data WorkflowProgress = WorkflowProgress {
-    contract :: Maybe (StateKeys (Id' "contracts")), partner:: Maybe (StateKeys (Id' "partners")) , tariff :: Maybe (StateKeys (Id' "tariffs"))
+    contract :: Maybe (StateKeys (Id' "contract_states")), partner:: Maybe (StateKeys (Id' "partner_states")) , tariff :: Maybe (StateKeys (Id' "tariff_states"))
     } deriving (Generic)
-instance FromJSON (StateKeys (Id' "contracts"))
-instance ToJSON (StateKeys (Id' "contracts"))
-instance FromJSON (StateKeys (Id' "partners"))
-instance ToJSON (StateKeys (Id' "partners"))
-instance FromJSON (StateKeys (Id' "tariffs"))
-instance ToJSON (StateKeys (Id' "tariffs"))
+instance FromJSON (StateKeys (Id' "contract_states"))
+instance ToJSON (StateKeys (Id' "contract_states"))
+instance FromJSON (StateKeys (Id' "partner_states"))
+instance ToJSON (StateKeys (Id' "partner_states"))
+instance FromJSON (StateKeys (Id' "tariff_states"))
+instance ToJSON (StateKeys (Id' "tariff_states"))
 instance FromJSON WorkflowProgress
 instance ToJSON WorkflowProgress
 
@@ -210,12 +210,12 @@ setWfp wf wfp = wf |> set #progress ( fromJust $ decode $ encode wfp )
 --     Nothing -> Nothing
 --     Just wfstate -> state wfstate
 -- 
--- getContractId :: Workflow -> Id Contract
+-- getContractId :: Workflow -> Id ContractState
 -- getContractId workflow =  Id $ fromJust $ getStateIdMB (fromJust $ (decode . encode) $ get  #progress workflow) (get #historyType workflow)
 setContractVersionId :: Integer -> WorkflowProgress -> WorkflowProgress
 setContractVersionId vid (WorkflowProgress (Just (StateKeys h v c sh)) partner tariff) = WorkflowProgress (Just (StateKeys h (Just vid) c sh)) partner tariff
 
-setContractId :: (Id Contract) -> WorkflowProgress -> WorkflowProgress
+setContractId :: (Id ContractState) -> WorkflowProgress -> WorkflowProgress
 setContractId sid (WorkflowProgress (Just (StateKeys h v c sh)) partner tariff)  = WorkflowProgress (Just (StateKeys h v (Just sid) sh)) partner tariff
 
 getShadowed :: WorkflowProgress -> Maybe (Integer,[Integer])
@@ -230,7 +230,7 @@ instance (ToJSON a) => ToJSON (CRULog a)
 instance (FromJSON a) => FromJSON (CRULog a)
 
 data PersistenceLog =
-    WorkflowPL (CRULog (Id Workflow)) | HistoryPL (CRULog (Id History)) | VersionPL (CRULog (Id Version)) | ContractPL (CRULog (Id Contract)) | PartnerPL (CRULog (Id Partner))| TariffPL (CRULog (Id Tariff))
+    WorkflowPL (CRULog (Id Workflow)) | HistoryPL (CRULog (Id History)) | VersionPL (CRULog (Id Version)) | ContractPL (CRULog (Id ContractState)) | PartnerPL (CRULog (Id PartnerState))| TariffPL (CRULog (Id TariffState))
     deriving (Generic, Show)
 
 instance ToJSON PersistenceLog
@@ -251,19 +251,19 @@ instance ToJSON (Id' "versions") where
 instance FromJSON (Id' "versions") where
     parseJSON = withObject "versionId" $ \o ->
         Id <$> o .: "versionId"
-instance ToJSON (Id' "contracts") where
+instance ToJSON (Id' "contract_states") where
     toJSON (Id key) = object ["contractId" .= key]
-instance FromJSON (Id' "contracts") where
+instance FromJSON (Id' "contract_states") where
     parseJSON = withObject "contractId" $ \o ->
         Id <$> o .: "contractId"
-instance ToJSON (Id' "partners") where
+instance ToJSON (Id' "partner_states") where
     toJSON (Id key) = object ["partnerId" .= key]
-instance FromJSON (Id' "partners") where
+instance FromJSON (Id' "partner_states") where
     parseJSON = withObject "partnerId" $ \o ->
         Id <$> o .: "partnerId"
-instance ToJSON (Id' "tariffs") where
+instance ToJSON (Id' "tariff_states") where
     toJSON (Id key) = object ["tariffId" .= key]
-instance FromJSON (Id' "tariffs") where
+instance FromJSON (Id' "tariff_states") where
     parseJSON = withObject "tariffId" $ \o ->
         Id <$> o .: "tariffId"
 
@@ -289,6 +289,6 @@ class (KnownSymbol (GetTableName rec), rec ~ GetModelByTableName (GetTableName r
 instance HasTxnLog Workflow
 instance HasTxnLog History 
 instance HasTxnLog Version 
-instance HasTxnLog Contract
-instance HasTxnLog Partner
-instance HasTxnLog Tariff
+instance HasTxnLog ContractState
+instance HasTxnLog PartnerState
+instance HasTxnLog TariffState

@@ -15,14 +15,14 @@ instance Controller PartnersController where
 
     action PartnersAction = do
         workflow::Workflow <- getCurrentWorkflow
-        partners <- query @Partner |> fetch
+        partners <- query @PartnerState |> fetch
         render IndexView { .. }
         render IndexView { .. }
 
     action NewPartnerAction = do
         workflow::Workflow <- getCurrentWorkflow
         let workflowId = get #id workflow
-        let partnerNew :: Partner = newRecord
+        let partnerNew :: PartnerState = newRecord
         render NewView { .. }
 
     action ShowPartnerAction { partnerId } = do
@@ -50,7 +50,7 @@ instance Controller PartnersController where
                 Right partnerUpd -> do
                     Log.info ("UpdatePartner Success"::String)
                     partnerPers <- mutateHistory partner workflow partnerUpd
-                    setSuccessMessage "Partner updated"
+                    setSuccessMessage "PartnerState updated"
                     let partnerId = get #id partnerPers
                     redirectTo EditPartnerAction { .. }
 
@@ -58,7 +58,7 @@ instance Controller PartnersController where
         Log.info  ("Enter createHistory workflow=" :: String)
         workflowId <- getCurrentWorkflowId
         workflow :: Workflow <- fetch workflowId
-        let partnerNew = newRecord @Partner
+        let partnerNew = newRecord @PartnerState
         partnerNew
             |> buildPartner
             |> ifValid \case
@@ -68,8 +68,8 @@ instance Controller PartnersController where
                 Right partnerNew -> do
                     
                     Log.info ("CreateContract Success"::String)
-                    partnerCreated :: Partner <- createHistory partner workflow partnerNew
-                    setSuccessMessage "Partner created"
+                    partnerCreated :: PartnerState <- createHistory partner workflow partnerNew
+                    setSuccessMessage "PartnerState created"
                     let partnerId = get #id partnerCreated
                     redirectTo PartnersAction
 
@@ -77,8 +77,8 @@ instance Controller PartnersController where
         workflow::Workflow <- getCurrentWorkflow
         partner <- fetch partnerId
         deleteRecord partner
-        setSuccessMessage "Partner deleted"
+        setSuccessMessage "PartnerState deleted"
         redirectTo PartnersAction
 
 buildPartner partner = partner
-    |> fill @'["refHistory","refValidfromversion","refValidthruversion","content"]
+    |> fill @'["refEntity","refValidfromversion","refValidthruversion","content"]

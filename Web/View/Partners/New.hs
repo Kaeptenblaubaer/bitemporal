@@ -1,6 +1,6 @@
 module Web.View.Partners.New where
 import Web.View.Prelude
-data NewView = NewView { workflowId :: Id Workflow, partnerNew :: Partner }
+data NewView = NewView { workflowId :: Id Workflow, partnerNew :: PartnerState }
 
 instance View NewView where
     html NewView { .. } = [hsx|
@@ -8,18 +8,18 @@ instance View NewView where
             <ol class="breadcrumb">
                 <li class="breadcrumb-item"><a href={ShowWorkflowAction workflowId}>Workflow</a></li>
                 <li class="breadcrumb-item"><a href={PartnersAction}>Partners</a></li>
-                <li class="breadcrumb-item active">New Partner</li>
+                <li class="breadcrumb-item active">New PartnerState</li>
             </ol>
         </nav>
-        <h1>New Partner</h1>
+        <h1>New PartnerState</h1>
         {renderForm partnerNew}
     |]
 
-renderForm :: Partner -> Html
+renderForm :: PartnerState -> Html
 renderForm partner = formFor partner [hsx|
     {(textField #refValidfromversion)}
     {(textField #refValidthruversion)}
-    {(textField #refHistory)}
+    {(textField #refEntity)}
     {(textField #content)}
     {submitButton}
 |]

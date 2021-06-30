@@ -1,7 +1,7 @@
 module Web.View.Tariffs.Index where
 import Web.View.Prelude
 
-data IndexView = IndexView { tariffs :: [Tariff] }
+data IndexView = IndexView { tariffs :: [TariffState] }
 
 instance View IndexView where
     html IndexView { .. } = [hsx|
@@ -15,7 +15,7 @@ instance View IndexView where
             <table class="table">
                 <thead>
                     <tr>
-                        <th>Tariff</th>
+                        <th>TariffState</th>
                         <th></th>
                         <th></th>
                         <th></th>

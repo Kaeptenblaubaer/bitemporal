@@ -1,0 +1,11 @@
+GET http://localhost:8000/Workflows
+
+###
+
+http://localhost:8000/NextWorkflow?workflowId=42603f7d-d772-47e8-935d-c73892570a86&historyId=42603f7d-d772-47e8-935d-c73892570a86
+
+###
+
+###
+
+http://localhost:8000/NewWorkflow?historyId=42603f7d-d772-47e8-935d-c73892570a86
