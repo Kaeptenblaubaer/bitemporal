@@ -74,6 +74,24 @@ CREATE TABLE tariffs (
     id BIGSERIAL PRIMARY KEY NOT NULL,
     ref_history UUID DEFAULT uuid_generate_v4() NOT NULL
 );
+CREATE TABLE contract_partners (
+    id BIGSERIAL PRIMARY KEY NOT NULL,
+    ref_history UUID DEFAULT uuid_generate_v4() NOT NULL
+);
+CREATE TABLE contract_partner_states (
+    id BIGSERIAL PRIMARY KEY NOT NULL,
+    ref_validfromversion BIGINT NOT NULL,
+    ref_validthruversion BIGINT,
+    ref_partner BIGSERIAL NOT NULL,
+    ref_contract BIGSERIAL NOT NULL,
+    ref_entity BIGSERIAL NOT NULL
+);
+ALTER TABLE contract_partner_states ADD CONSTRAINT contract_partner_states_ref_ref_contract FOREIGN KEY (ref_contract) REFERENCES contracts (id) ON DELETE NO ACTION;
+ALTER TABLE contract_partner_states ADD CONSTRAINT contract_partner_states_ref_ref_entity FOREIGN KEY (ref_entity) REFERENCES contract_partners (id) ON DELETE NO ACTION;
+ALTER TABLE contract_partner_states ADD CONSTRAINT contract_partner_states_ref_ref_partner FOREIGN KEY (ref_partner) REFERENCES partners (id) ON DELETE NO ACTION;
+ALTER TABLE contract_partner_states ADD CONSTRAINT contract_partner_states_ref_ref_validfromversion FOREIGN KEY (ref_validfromversion) REFERENCES versions (id) ON DELETE CASCADE;
+ALTER TABLE contract_partner_states ADD CONSTRAINT contract_partner_states_ref_ref_validthruversion FOREIGN KEY (ref_validthruversion) REFERENCES versions (id) ON DELETE CASCADE;
+ALTER TABLE contract_partners ADD CONSTRAINT contract_partners_ref_ref_history FOREIGN KEY (ref_history) REFERENCES histories (id) ON DELETE NO ACTION;
 ALTER TABLE contract_states ADD CONSTRAINT contract_states_ref_ref_entity FOREIGN KEY (ref_entity) REFERENCES contracts (id) ON DELETE CASCADE;
 ALTER TABLE contract_states ADD CONSTRAINT contracts_ref_Validfromversion FOREIGN KEY (ref_validfromversion) REFERENCES versions (id) ON DELETE NO ACTION;
 ALTER TABLE contract_states ADD CONSTRAINT contracts_ref_Validthruversion FOREIGN KEY (ref_validthruversion) REFERENCES versions (id) ON DELETE SET NULL;
