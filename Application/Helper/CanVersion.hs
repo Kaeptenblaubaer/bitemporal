@@ -140,7 +140,7 @@ class (Show e, KnownSymbol (GetTableName e), e ~ GetModelByTableName (GetTableNa
     getShadowed accessor wfp = shadowed $ fromJust $ accessor wfp 
     setShadowed :: (WorkflowProgress ->  Maybe (StateKeys (Id e)(Id s))) -> WorkflowProgress -> (Integer,[Integer]) -> WorkflowProgress
 
-    mutateHistory :: (?modelContext::ModelContext, ?context::context, LoggingProvider context) => (WorkflowProgress ->  Maybe (StateKeys (Id e)(Id s))) -> Workflow -> s -> IO s
+    mutateHistory :: (?modelContext::ModelContext, ?context::context, LoggingProvider context) => (WorkflowProgress ->  Maybe (StateKeys (Id e)(Id s))) -> Workflow -> s -> IO (Workflow, s)
     mutateHistory accessor workflow state = do
         let wfprogress :: WorkflowProgress = fromJust $ getWfp workflow
         let versionIdMB = getStateVersionIdMB accessor wfprogress
@@ -148,7 +148,7 @@ class (Show e, KnownSymbol (GetTableName e), e ~ GetModelByTableName (GetTableNa
         case versionIdMB of
             Just v -> do
                 Log.info ("mutateHistory Update existing Version" :: String)
-                pure state
+                pure (workflow,state)
             Nothing -> do
                 Log.info ("mutateHistory Update new Version" :: String)
                 let validfrom = tshow $ get #validfrom workflow
@@ -160,14 +160,14 @@ class (Show e, KnownSymbol (GetTableName e), e ~ GetModelByTableName (GetTableNa
                 let wfpNew :: Value = updateWfpV accessor wfprogress (fromId $ get #refHistory entity) entityId (Just $ fromId $ get #id version) (Just $ get #id newState )
                 workflow :: Workflow <- workflow |> set #progress wfpNew   |> updateRecord  
                 Log.info $ "mutateHistory Update new Version = " ++  show (get #id newState)           
-                pure newState
+                pure (workflow,newState)
 
     queryImmutableState :: (?modelContext::ModelContext, ?context::context, LoggingProvider context )=> Id Version -> IO (Id s)
     queryImmutableState versionId =  do
         mstate <- query @s |> filterWhere (#refValidfromversion, versionId) |> fetchOne
         pure $ get #id mstate
 
-    queryVersionMutableValidfrom :: (?modelContext::ModelContext, ?context::context, LoggingProvider context) => (WorkflowProgress ->  Maybe (StateKeys (Id e)(Id s))) -> Workflow -> IO (Version,[Version])
+    queryVersionMutableValidfrom :: (?modelContext::ModelContext, ?context::context, LoggingProvider context) => (WorkflowProgress ->  Maybe (StateKeys (Id e)(Id s))) -> Workflow -> IO (Workflow,Version,[Version])
     queryVersionMutableValidfrom accessor workflow = do
         Log.info $ "queryVersionMutableValidfrom Workflow=" ++ show workflow
         let wfprogress :: WorkflowProgress = fromJust $ getWfp workflow
@@ -182,53 +182,52 @@ class (Show e, KnownSymbol (GetTableName e), e ~ GetModelByTableName (GetTableNa
             p :: (Id History, Text) = (Id historyId, validfrom)
         vs :: [Version]  <- sqlQuery  q p
         let versionId = get #id $ fromJust $ head vs 
-        Log.info ( "queryVersionMutableValidfrom versionid=" ++ show versionId )
         let q2 :: Query = "SELECT * FROM versions v WHERE ref_history = ? and v.id > ? and validfrom > ?"
         let p2 :: (Id History, Id Version,Text) = (Id historyId, versionId, validfrom)
         shadowed :: [Version]  <- sqlQuery  q2 p2
         let shadowedIds :: [Integer] = map (getKey . get #id) shadowed  
-        Log.info ( "queryVersionMutableValidfrom versionId / shadowed=" ++ show versionId ++ "/" ++ show shadowed )
+        Log.info ( "queryVersionMutableValidfrom versionId / shadowed / workflowId =" ++ show versionId ++ "/" ++ show shadowedIds ++ "/" ++ show (get #id workflow))
         workflow :: Workflow <- setWfp workflow (setShadowed accessor wfprogress (getKey versionId, shadowedIds)) |> updateRecord
-        pure (fromJust $ head vs, shadowed)
+        Log.info ("queryVersionMutableValidfrom progress=" ++ show (getWfp workflow ))
+        pure (workflow, fromJust $ head vs, shadowed)
             where getKey (Id key) = key
 
-    queryMutableState :: (?modelContext::ModelContext, ?context::context, LoggingProvider context )=> (WorkflowProgress ->  Maybe (StateKeys (Id e)(Id s)))-> Workflow -> IO (s,[Version])
+    queryMutableState :: (?modelContext::ModelContext, ?context::context, LoggingProvider context )=> (WorkflowProgress ->  Maybe (StateKeys (Id e)(Id s)))-> Workflow -> IO (Workflow, s,[Version])
     queryMutableState accessor workflow =  do
         Log.info $ "queryMutableState workflow=" ++ show (get #progress workflow)
-        mutable :: (Version,[Version]) <- queryVersionMutableValidfrom accessor workflow 
-        Log.info $ "queryMutableState mutable=" ++ show mutable
+        (workflow,version,shadowed) :: (Workflow, Version,[Version]) <- queryVersionMutableValidfrom accessor workflow 
+        Log.info $ "queryMutableState version=" ++ show version ++ " shadowed " ++ show shadowed
         Log.info $ "queryMutableState wfp=" ++ show ( fromJust $ getWfp workflow )
         let wfp = fromJust $ getWfp workflow 
             h = fromJust $ getStatehistoryIdMB accessor wfp
             e = fromJust $ getEntityIdMB accessor wfp
-            v = get #id (fst mutable)
+            v = get #id version
         mstate <- query @s |> filterWhere(#refEntity, e) |> filterWhereSql (#refValidfromversion, encodeUtf8("<= " ++ show v)) |>
                             queryOr 
                                  (filterWhereSql (#refValidthruversion, encodeUtf8("> " ++ show v)))
                                  (filterWhereSql (#refValidthruversion, "is null")) |> fetchOne
-        pure (mstate,snd mutable)
+        Log.info ("queryMutableState shadow/shadowed=" ++ show version ++ " / " ++ show shadowed)
+        pure (workflow, mstate,shadowed)
 
-    runMutation :: (?modelContext::ModelContext, ?context::context, LoggingProvider context, Show s, CanVersion e s) => (WorkflowProgress -> Maybe (StateKeys (Id e)(Id s))) -> User -> HistoryType -> s -> Text -> IO()
-    runMutation accessor usr histoType s newContent = do
+    runMutation :: (?modelContext::ModelContext, ?context::context, LoggingProvider context, Show s, CanVersion e s) => (WorkflowProgress -> Maybe (StateKeys (Id e)(Id s))) -> User -> HistoryType -> s -> Day -> Text -> IO()
+    runMutation accessor usr histoType s validfrom newContent = do
         Log.info $ ">>>>>>>>>>>>>>> runMutation start" ++ show histoType 
-        wfMUT0 ::Workflow <- newRecord |> set #refUser (get #id usr) |> set #historyType histoType |> set #workflowType WftypeUpdate  |> createRecord
         let eId :: Id e = get #refEntity s
         Log.info $ "runMutation entity =" ++ show eId
         entity :: e <- fetch eId
         let hid :: (Id History) = get #refHistory entity
             wfpJ :: Value = updateWfpV accessor workflowProgressDefault (fromId hid) eId Nothing Nothing 
-        today <- today 
         Log.info $ "runMutation history = " ++ show hid
-        wfMUT1 <- wfMUT0 |> set #progress wfpJ |> set #validfrom today |> updateRecord
-        Log.info $ "runMutation wfmut1 = " ++ show wfMUT1
-        mutable :: (s,[Version]) <- queryMutableState accessor wfMUT1
-        Log.info $ "MUTABLE=" ++ show (fst mutable)
-        let recMUT0 = fst mutable |> set #content newContent
-        recMUT :: s <- mutateHistory getAccessor wfMUT1 recMUT0
-        wfMUT :: Workflow <- fetch (get #id wfMUT1)
-        Log.info $ ">>>>>>>>>>>>>>> NACH MUTATE" ++ show histoType
-        Log.info $ "Workflow für commit:" ++ show  wfMUT
-        result <- commitState accessor wfMUT 
+        workflow <- newRecord |> set #refUser (get #id usr) |> set #historyType histoType |> set #workflowType WftypeUpdate |> 
+            set #progress wfpJ |> set #validfrom validfrom |> createRecord
+        Log.info $ "runMutation wfmut1 = " ++ show workflow
+        (workflow,state,shadowed) :: (Workflow, s,[Version]) <- queryMutableState accessor workflow
+        Log.info $ "runMutation MUTABLE/SHADOWED=" ++ show state ++ "/" ++ show shadowed
+        let  newState = state |> set #content newContent
+        (workflow,newState) :: (Workflow,s) <- mutateHistory getAccessor workflow state
+        Log.info $ ">>>>>>>>>>>>>>> NACH MUTATE histotype " ++ show histoType ++ " progress" ++ show (get #progress workflow)
+        Log.info $ "Workflow für commit:" ++ show  workflow
+        result <- commitState accessor workflow 
         case result of
             Left msg -> Log.info $ "SUCCESS:"++ msg
             Right msg -> Log.info $ "ERROR:" ++ msg
