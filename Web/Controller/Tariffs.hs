@@ -56,7 +56,7 @@ instance Controller TariffsController where
             |> ifValid \case
                 Left tariffNew -> render NewView { .. } 
                 Right tariffNew -> do
-                    tariffCreated :: TariffState <- createHistory tariff workflow tariffNew 
+                    (tariffCreated,keys) :: (TariffState,StateKeys(Id Tariff)(Id TariffState)) <- createHistory tariff workflow tariffNew 
                     setSuccessMessage "TariffState created"
                     let tariffId = get #id tariffCreated
                     redirectTo EditTariffAction {..}

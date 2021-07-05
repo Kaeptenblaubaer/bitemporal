@@ -49,7 +49,7 @@ instance Controller PartnersController where
                     render EditView { .. }
                 Right partnerUpd -> do
                     Log.info ("UpdatePartner Success"::String)
-                    partnerPers <- mutateHistory partner workflow partnerUpd
+                    (workflow,partnerPers)::(Workflow,PartnerState)<- mutateHistory partner workflow partnerUpd
                     setSuccessMessage "PartnerState updated"
                     let partnerId = get #id partnerPers
                     redirectTo EditPartnerAction { .. }
@@ -68,7 +68,7 @@ instance Controller PartnersController where
                 Right partnerNew -> do
                     
                     Log.info ("CreateContract Success"::String)
-                    partnerCreated :: PartnerState <- createHistory partner workflow partnerNew
+                    (partnerCreated,keys) :: (PartnerState, StateKeys (Id Partner)(Id PartnerState))<- createHistory partner workflow partnerNew
                     setSuccessMessage "PartnerState created"
                     let partnerId = get #id partnerCreated
                     redirectTo PartnersAction

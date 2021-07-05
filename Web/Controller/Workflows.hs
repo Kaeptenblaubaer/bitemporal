@@ -198,13 +198,13 @@ redirectUpdateState workflow = do
             setErrorMessage "SHOULDN'T: history and state ids are null"
             redirectTo WorkflowsAction
 
-getOrCreateStateIdForUpdate :: (?context::ControllerContext, ?modelContext::ModelContext, CanVersion e s) => (WorkflowProgress ->  Maybe (StateKeys (Id rec))) ->  Workflow -> IO (Either (Text,Integer) Text)
+getOrCreateStateIdForUpdate :: (?context::ControllerContext, ?modelContext::ModelContext, CanVersion e s) => (WorkflowProgress ->  Maybe (StateKeys (Id e)(Id s))) ->  Workflow -> IO (Either (Text,Integer) Text)
 getOrCreateStateIdForUpdate accessor workflow = do
     case getStateIdMB accessor $ fromJust $ getWfp workflow of
         Nothing -> do
-            mutable :: (rec,[Version]) <- queryMutableState accessor workflow
-            let sid = getKey $ fst mutable
-                msg :: Text = case snd mutable of
+            (workflow,state,shadowed) :: (Workflow,s,[Version]) <- queryMutableState accessor workflow
+            let sid = getKey state
+                msg :: Text = case shadowed of
                             [] -> "not retrospective"
                             shadowed -> "the following versions will be shadowed: " ++ foldr ((++) . show . get #validfrom ) "" shadowed
             pure $ Left (msg, sid)

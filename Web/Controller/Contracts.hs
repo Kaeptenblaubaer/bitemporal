@@ -47,7 +47,7 @@ instance Controller ContractsController where
                     render EditView { workflowId,  .. }
                 Right contractUpd -> do
                     Log.info ("UpdateContract Success"::String)
-                    contractPers <- mutateHistory contract workflow contractUpd
+                    (workflow,contractPers) :: (Workflow,ContractState)<- mutateHistory contract workflow contractUpd
                     setSuccessMessage "ContractState updated"
                     let contractId = get #id contractPers
                     redirectTo EditContractAction {..}
@@ -65,7 +65,7 @@ instance Controller ContractsController where
                     render NewView { workflowId, .. } 
                 Right contractNew -> do
                     Log.info ("CreateContract Success"::String)
-                    contractCreated :: ContractState <- createHistory contract workflow contractNew
+                    (contractCreated, keys) :: (ContractState,StateKeys (Id Contract)(Id ContractState)) <- createHistory contract workflow contractNew
                     setSuccessMessage "ContractState created"
                     let contractId = get #id contractCreated
                     redirectTo EditContractAction {..}
